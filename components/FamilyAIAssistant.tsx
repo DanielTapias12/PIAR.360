@@ -9,12 +9,12 @@ interface FamilyAIAssistantProps {
     student: Student;
 }
 
-// FIX: Defined a props interface for ChatBubble to resolve typing issues with the 'key' prop in lists.
 interface ChatBubbleProps {
     message: FamilyMessage;
 }
 
-const ChatBubble = ({ message }: ChatBubbleProps) => {
+// FIX: Explicitly typed as React.FC to solve type error with 'key' prop in lists.
+const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
     const isUser = message.sender === 'user';
     const bubbleClasses = isUser ? 'bg-emerald-600 text-white self-end' : 'bg-slate-200 text-slate-800 self-start';
     return (
@@ -50,7 +50,7 @@ const FamilyAIAssistant: React.FC<FamilyAIAssistantProps> = ({ student }) => {
             id: `msg_${Date.now()}`,
             sender: 'user',
             text: input,
-            timestamp: new Date().toISOString()
+            timestamp: new new Date().toISOString()
         };
 
         setMessages(prev => [...prev, userMessage]);

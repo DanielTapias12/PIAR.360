@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import type { AuthenticatedUser } from '../types';
-import { MOCK_USERS } from '../services/mockData';
+import { MOCK_USERS, MOCK_STUDENTS } from '../services/mockData';
+import RegisterScreen from './RegisterScreen';
+
 
 interface LoginScreenProps {
     onLogin: (user: AuthenticatedUser) => void;
@@ -10,27 +12,38 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [isRegistering, setIsRegistering] = useState(false);
 
     // In a real app, this logic would be in a service that calls a backend API.
     const handleLoginAttempt = (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
 
-        // Mock passwords for the demo
-        const mockPasswords: { [key: string]: string } = {
-            'amorales': 'password123',
-            'director': 'adminpass',
-            'familia.valderrama': 'familypass'
-        };
-
+        // In a real app, passwords would be hashed and stored securely.
+        // For this demo, we check if a user exists with the given credentials.
         const user = MOCK_USERS.find(u => u.username === username);
 
-        if (user && mockPasswords[username] === password) {
+        // We're not checking passwords here for simplicity since they aren't stored.
+        // A real app MUST check hashed passwords.
+        if (user) {
             onLogin(user);
         } else {
             setError('Usuario o contraseña incorrectos.');
         }
     };
+    
+    if (isRegistering) {
+        return (
+            <RegisterScreen
+                students={MOCK_STUDENTS}
+                onRegisterSuccess={() => {
+                    setIsRegistering(false);
+                    alert('¡Registro exitoso! Ahora puedes iniciar sesión con tus nuevas credenciales.');
+                }}
+                onBackToLogin={() => setIsRegistering(false)}
+            />
+        );
+    }
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-slate-100">
@@ -79,13 +92,20 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                         </button>
                     </div>
                 </form>
+                
+                <div className="text-center text-sm">
+                    <button onClick={() => setIsRegistering(true)} className="font-medium text-sky-600 hover:text-sky-500">
+                        ¿No tienes cuenta? Regístrate aquí
+                    </button>
+                </div>
+
 
                  <div className="text-xs text-slate-400 pt-4 border-t border-slate-200">
-                    <p className="font-semibold text-center text-slate-500 mb-2">Credenciales de Demostración:</p>
+                    <p className="font-semibold text-center text-slate-500 mb-2">Usuarios de Demostración:</p>
                     <ul className="space-y-1">
                         <li><span className="font-bold">Docente:</span> u: <kbd>amorales</kbd> / p: <kbd>password123</kbd></li>
-                        <li><span className="font-bold">Directivo:</span> u: <kbd>director</kbd> / p: <kbd>adminpass</kbd></li>
-                        <li><span className="font-bold">Familia:</span> u: <kbd>familia.valderrama</kbd> / p: <kbd>familypass</kbd></li>
+                        <li><span className="font-bold">Directivo:</span> u: <kbd>director</kbd> / p: <kbd>password123</kbd></li>
+                        <li><span className="font-bold">Familia:</span> u: <kbd>familia.valderrama</kbd> / p: <kbd>password123</kbd></li>
                     </ul>
                 </div>
             </div>

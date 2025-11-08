@@ -12,12 +12,12 @@ const LoadingSpinner = () => (
     </div>
 );
 
-// FIX: Defined a props interface for StrategyCard to resolve typing issues with the 'key' prop in lists.
 interface StrategyCardProps {
     strategy: Strategy;
 }
 
-const StrategyCard = ({ strategy }: StrategyCardProps) => (
+// FIX: Explicitly typed as React.FC to solve type error with 'key' prop.
+const StrategyCard: React.FC<StrategyCardProps> = ({ strategy }) => (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
         <h3 className="font-bold text-sky-700">{strategy.title}</h3>
         <p className="mt-2 text-sm text-slate-600 leading-6">{strategy.description}</p>

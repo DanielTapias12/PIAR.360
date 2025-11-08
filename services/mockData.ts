@@ -71,7 +71,8 @@ export const MOCK_STUDENTS: Student[] = [
     }
 ];
 
-export const MOCK_USERS: AuthenticatedUser[] = [
+// Changed to `let` to allow adding new users on registration
+export let MOCK_USERS: AuthenticatedUser[] = [
     {
         username: 'amorales',
         name: 'Ana Morales',

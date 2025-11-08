@@ -8,11 +8,11 @@ interface ChatInterfaceProps {
     students: Student[];
 }
 
-// FIX: Defined a props interface for ChatBubble to resolve typing issues with the 'key' prop in lists.
 interface ChatBubbleProps {
     message: ChatMessage;
 }
-const ChatBubble = ({ message }: ChatBubbleProps) => {
+// FIX: Explicitly typed as React.FC to solve type error with 'key' prop in lists.
+const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
     const isUser = message.sender === 'user';
     const bubbleClasses = isUser ? 'bg-sky-600 text-white self-end' : 'bg-slate-200 text-slate-800 self-start';
     return (
@@ -22,12 +22,12 @@ const ChatBubble = ({ message }: ChatBubbleProps) => {
     );
 };
 
-// FIX: Defined a props interface for SuggestionChip to resolve typing issues with the 'key' prop in lists.
 interface SuggestionChipProps {
     text: string;
     onClick: (text: string) => void;
 }
-const SuggestionChip = ({ text, onClick }: SuggestionChipProps) => (
+// FIX: Explicitly typed as React.FC to solve type error with 'key' prop in lists.
+const SuggestionChip: React.FC<SuggestionChipProps> = ({ text, onClick }) => (
     <button
         onClick={() => onClick(text)}
         className="px-3 py-1.5 bg-sky-100 text-sky-700 rounded-full text-sm font-medium hover:bg-sky-200 transition-colors"
