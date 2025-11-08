@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import type { Student, ProgressEntry } from '../types';
-import { PlusIcon } from './icons/Icons';
+import { PlusIcon, AcademicCapIcon } from './icons/Icons';
 
 interface ProgressTrackingProps {
     student: Student;
@@ -79,19 +78,43 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ student, onProgress
             
             <div className="space-y-4">
                 {student.progressEntries.length > 0 ? (
-                    student.progressEntries.map(entry => (
-                        <div key={entry.id} className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <p className="font-semibold text-sky-700">{entry.area}</p>
-                                    <p className="text-xs text-slate-500">
-                                        {new Date(entry.date).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })} por {entry.author}
-                                    </p>
+                    student.progressEntries.map(entry => {
+                        if (entry.strategy) {
+                            return (
+                                <div key={entry.id} className="bg-sky-50 p-4 rounded-lg border-l-4 border-sky-500 animate-fade-in">
+                                    <div className="flex items-start gap-4">
+                                        <div className="flex-shrink-0 mt-1">
+                                            <AcademicCapIcon className="w-8 h-8 text-sky-600" />
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-sky-800">{entry.area}</p>
+                                            <p className="text-xs text-slate-500 mb-2">
+                                                {new Date(entry.date).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })} por {entry.author}
+                                            </p>
+                                            <div className="text-sm text-slate-700 bg-white/60 p-3 rounded-md border border-sky-200/80">
+                                                <p className="font-bold">{entry.strategy.title}</p>
+                                                <p className="mt-1 text-slate-600">{entry.strategy.description}</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
+                            );
+                        }
+                        
+                        return (
+                            <div key={entry.id} className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <p className="font-semibold text-sky-700">{entry.area}</p>
+                                        <p className="text-xs text-slate-500">
+                                            {new Date(entry.date).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })} por {entry.author}
+                                        </p>
+                                    </div>
+                                </div>
+                                <p className="mt-2 text-sm text-slate-600">{entry.observation}</p>
                             </div>
-                            <p className="mt-2 text-sm text-slate-600">{entry.observation}</p>
-                        </div>
-                    ))
+                        );
+                    })
                 ) : (
                     <div className="text-center py-10">
                         <p className="text-slate-500">No hay registros de seguimiento.</p>

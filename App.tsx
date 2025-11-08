@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import type { Student, AuthenticatedUser } from './types';
+import type { Student, AuthenticatedUser, Strategy, ProgressEntry, NewStudentData } from './types';
 import { MOCK_STUDENTS } from './services/mockData';
 import Layout from './components/Layout';
 import LoginScreen from './components/LoginScreen';
@@ -61,6 +61,50 @@ const App: React.FC = () => {
         }
     }, [currentUser, students]);
 
+    const handleAssignStrategyToStudent = useCallback((studentId: string, strategy: Strategy) => {
+        const student = students.find(s => s.id === studentId);
+        if (!student || !currentUser) return;
+
+        const newProgressEntry: ProgressEntry = {
+            id: `prog_strat_${Date.now()}`,
+            date: new Date().toISOString().split('T')[0],
+            area: 'Estrategia Asignada',
+            observation: `Se asignó la estrategia: "${strategy.title}".`,
+            author: currentUser.name,
+            strategy: {
+                title: strategy.title,
+                description: strategy.description,
+            }
+        };
+
+        const updatedStudent = { ...student, progressEntries: [newProgressEntry, ...student.progressEntries] };
+        updateStudentData(updatedStudent);
+    }, [students, currentUser, updateStudentData]);
+
+    const handleAssignStudentToTeacher = useCallback((studentId: string) => {
+        const student = students.find(s => s.id === studentId);
+        if (!student || !currentUser || currentUser.role !== 'Docente') return;
+
+        const updatedStudent = { ...student, teacher: currentUser.name };
+        updateStudentData(updatedStudent);
+    }, [students, currentUser, updateStudentData]);
+
+    const handleRegisterStudent = useCallback((newStudentData: NewStudentData) => {
+        if (!currentUser) return;
+
+        const newStudent: Student = {
+            id: `st_${Date.now()}`,
+            photoUrl: `https://picsum.photos/seed/${newStudentData.name.split(' ').join('')}/200`,
+            teacher: currentUser.role === 'Docente' ? currentUser.name : undefined,
+            documents: [],
+            progressEntries: [],
+            ...newStudentData,
+        };
+
+        setStudents(prevStudents => [newStudent, ...prevStudents]);
+    }, [currentUser]);
+
+
     const renderContent = () => {
         if (!currentUser) return null;
 
@@ -87,11 +131,22 @@ const App: React.FC = () => {
                  return null;
             case 'students':
                 if (currentUser.role === 'Familia') return null; // No student list for family role.
-                return <StudentList students={studentsForUser} onSelectStudent={handleSelectStudent} userRole={currentUser.role} />;
+                return <StudentList 
+                    students={studentsForUser} 
+                    allStudents={students}
+                    onSelectStudent={handleSelectStudent} 
+                    user={currentUser} 
+                    onAssignStudent={handleAssignStudentToTeacher}
+                    onRegisterStudent={handleRegisterStudent}
+                />;
             case 'assistant':
                 return <ChatInterface user={currentUser} students={studentsForUser} />;
             case 'strategies':
-                return <StrategyBank />;
+                 if (currentUser.role === 'Familia') return null;
+                return <StrategyBank 
+                    students={studentsForUser}
+                    onAssignStrategy={handleAssignStrategyToStudent}
+                />;
             default:
                 return null;
         }

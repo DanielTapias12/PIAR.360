@@ -19,6 +19,13 @@ export interface Student {
     progressEntries: ProgressEntry[];
 }
 
+export interface NewStudentData {
+    name: string;
+    grade: string;
+    riskLevel: 'bajo' | 'medio' | 'alto';
+    diagnosis: string;
+}
+
 export interface Document {
     id: string;
     name: string;
@@ -56,6 +63,10 @@ export interface ProgressEntry {
     area: string;
     observation: string;
     author: string;
+    strategy?: {
+        title: string;
+        description: string;
+    };
 }
 
 export interface Notification {

@@ -68,6 +68,28 @@ export const MOCK_STUDENTS: Student[] = [
         teacher: 'Sandra Peña',
         documents: [],
         progressEntries: [],
+    },
+    {
+        id: 'st_06',
+        name: 'Nairo Quintana',
+        photoUrl: 'https://picsum.photos/seed/nquintana/200',
+        grade: 'Cuarto',
+        riskLevel: 'bajo',
+        diagnosis: 'Dificultades leves de procesamiento auditivo. Se beneficia de instrucciones claras y apoyos visuales.',
+        teacher: 'Carlos Ruiz', // Assigned to another teacher
+        documents: [],
+        progressEntries: [],
+    },
+    {
+        id: 'st_07',
+        name: 'Shakira Mebarak',
+        photoUrl: 'https://picsum.photos/seed/smebarak/200',
+        grade: 'Tercero',
+        riskLevel: 'medio',
+        diagnosis: 'Recién diagnosticada con discalculia. Requiere evaluación psicopedagógica completa para determinar los apoyos necesarios.',
+        teacher: undefined, // Unassigned student
+        documents: [],
+        progressEntries: [],
     }
 ];
 

@@ -50,7 +50,8 @@ const FamilyAIAssistant: React.FC<FamilyAIAssistantProps> = ({ student }) => {
             id: `msg_${Date.now()}`,
             sender: 'user',
             text: input,
-            timestamp: new new Date().toISOString()
+            // FIX: Corrected typo `new new Date()` to `new Date()`.
+            timestamp: new Date().toISOString()
         };
 
         setMessages(prev => [...prev, userMessage]);

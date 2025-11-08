@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { getInclusiveStrategies } from '../services/geminiService';
-import type { Strategy } from '../types';
-import { SearchIcon, LightbulbIcon } from './icons/Icons';
+import type { Student, Strategy } from '../types';
+import { SearchIcon, LightbulbIcon, XMarkIcon, AcademicCapIcon, CheckCircleIcon } from './icons/Icons';
 
 const LoadingSpinner = () => (
     <div className="flex justify-center items-center p-8">
@@ -12,12 +12,80 @@ const LoadingSpinner = () => (
     </div>
 );
 
+const AssignStrategyModal = ({
+    isOpen,
+    onClose,
+    students,
+    onConfirm,
+    strategyTitle,
+} : {
+    isOpen: boolean;
+    onClose: () => void;
+    students: Student[];
+    onConfirm: (studentId: string) => void;
+    strategyTitle: string;
+}) => {
+    const [selectedStudentId, setSelectedStudentId] = useState<string>(students[0]?.id || '');
+
+    if (!isOpen) return null;
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (selectedStudentId) {
+            onConfirm(selectedStudentId);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md m-4">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-bold text-slate-800">Asignar Estrategia</h2>
+                    <button onClick={onClose} className="p-1 rounded-full text-slate-400 hover:bg-slate-200">
+                        <XMarkIcon className="w-6 h-6" />
+                    </button>
+                </div>
+                <p className="text-sm text-slate-600 mb-2">
+                    Estás asignando la estrategia: <span className="font-semibold text-sky-700">{strategyTitle}</span>
+                </p>
+
+                <form onSubmit={handleSubmit}>
+                    <label htmlFor="student-select" className="block text-sm font-medium text-slate-700 mb-1">
+                        Selecciona un estudiante:
+                    </label>
+                    <select
+                        id="student-select"
+                        value={selectedStudentId}
+                        onChange={e => setSelectedStudentId(e.target.value)}
+                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm rounded-md"
+                    >
+                        {students.length > 0 ? (
+                            students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)
+                        ) : (
+                            <option disabled>No tienes estudiantes asignados</option>
+                        )}
+                    </select>
+                    <div className="mt-6 flex justify-end gap-3">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50">
+                            Cancelar
+                        </button>
+                        <button type="submit" disabled={!selectedStudentId} className="px-4 py-2 text-sm font-medium text-white bg-sky-600 border border-transparent rounded-md shadow-sm hover:bg-sky-700 disabled:bg-slate-400">
+                            Confirmar Asignación
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+
 interface StrategyCardProps {
     strategy: Strategy;
+    onAssign: (strategy: Strategy) => void;
 }
 
-// FIX: Explicitly typed as React.FC to solve type error with 'key' prop.
-const StrategyCard: React.FC<StrategyCardProps> = ({ strategy }) => (
+const StrategyCard: React.FC<StrategyCardProps> = ({ strategy, onAssign }) => (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
         <h3 className="font-bold text-sky-700">{strategy.title}</h3>
         <p className="mt-2 text-sm text-slate-600 leading-6">{strategy.description}</p>
@@ -29,10 +97,24 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategy }) => (
                 <span key={grade} className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">{grade}</span>
             ))}
         </div>
+        <div className="mt-4 pt-4 border-t border-slate-100 text-right">
+             <button
+                onClick={() => onAssign(strategy)}
+                className="inline-flex items-center px-3 py-1.5 border border-sky-200 text-sm font-medium rounded-md text-sky-700 bg-sky-50 hover:bg-sky-100 transition-colors"
+            >
+                <AcademicCapIcon className="w-4 h-4 mr-2"/>
+                Asignar a Estudiante
+            </button>
+        </div>
     </div>
 );
 
-const StrategyBank: React.FC = () => {
+interface StrategyBankProps {
+    students: Student[];
+    onAssignStrategy: (studentId: string, strategy: Strategy) => void;
+}
+
+const StrategyBank: React.FC<StrategyBankProps> = ({ students, onAssignStrategy }) => {
     const [query, setQuery] = useState('');
     const [area, setArea] = useState('todos');
     const [grade, setGrade] = useState('todos');
@@ -40,6 +122,10 @@ const StrategyBank: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [hasSearched, setHasSearched] = useState(false);
+
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedStrategy, setSelectedStrategy] = useState<Strategy | null>(null);
+    const [assignmentSuccess, setAssignmentSuccess] = useState('');
 
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -59,6 +145,22 @@ const StrategyBank: React.FC = () => {
         }
     };
 
+    const handleOpenModal = (strategy: Strategy) => {
+        setSelectedStrategy(strategy);
+        setIsModalOpen(true);
+    };
+
+    const handleConfirmAssignment = (studentId: string) => {
+        if (selectedStrategy && studentId) {
+            onAssignStrategy(studentId, selectedStrategy);
+            const studentName = students.find(s => s.id === studentId)?.name;
+            setAssignmentSuccess(`Estrategia "${selectedStrategy.title}" asignada a ${studentName}.`);
+            setTimeout(() => setAssignmentSuccess(''), 4000);
+        }
+        setIsModalOpen(false);
+        setSelectedStrategy(null);
+    };
+
     const areas = ['Lectoescritura', 'Matemáticas', 'Habilidades Sociales', 'Ciencias', 'Comunicación'];
     const grades = ['Tercero', 'Cuarto', 'Quinto', 'Sexto'];
 
@@ -66,8 +168,23 @@ const StrategyBank: React.FC = () => {
         <div className="p-8">
             <header className="mb-8">
                 <h1 className="text-3xl font-bold text-slate-800">Banco de Estrategias Inclusivas</h1>
-                <p className="text-slate-500 mt-1">Encuentra estrategias pedagógicas para apoyar a tus estudiantes, potenciado por IA.</p>
+                <p className="text-slate-500 mt-1">Encuentra y asigna estrategias pedagógicas para apoyar a tus estudiantes.</p>
             </header>
+            
+            {assignmentSuccess && (
+                 <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-500 text-green-800 rounded-r-lg flex items-center animate-fade-in" role="alert">
+                    <CheckCircleIcon className="w-6 h-6 mr-3"/>
+                    <p className="font-semibold text-sm">{assignmentSuccess}</p>
+                </div>
+            )}
+            
+            <AssignStrategyModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                students={students}
+                onConfirm={handleConfirmAssignment}
+                strategyTitle={selectedStrategy?.title || ''}
+            />
 
             <form onSubmit={handleSearch} className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -119,7 +236,7 @@ const StrategyBank: React.FC = () => {
                         <p className="mt-1 text-sm text-slate-500">Intenta con una búsqueda diferente o filtros más amplios.</p>
                     </div>
                 )}
-                {strategies.map((strategy, index) => <StrategyCard key={index} strategy={strategy} />)}
+                {strategies.map((strategy, index) => <StrategyCard key={index} strategy={strategy} onAssign={handleOpenModal} />)}
             </div>
         </div>
     );
