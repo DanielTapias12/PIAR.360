@@ -4,7 +4,7 @@ import type { PiarData, Student, AuthenticatedUser, Strategy } from "../types";
 
 // Per guidelines, initialize with a named apiKey object.
 // The API key MUST be obtained exclusively from process.env.API_KEY.
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const piarSchema = {
     type: Type.OBJECT,
@@ -213,7 +213,7 @@ export const getPedagogicalAgentResponse = async (
         1.  **Sugerir Estrategias:** Ofrecer estrategias pedagógicas, de evaluación y de comunicación personalizadas para los estudiantes.
         2.  **Resumir Información:** Sintetizar el progreso, las alertas y los datos clave de uno o varios estudiantes.
         3.  **Facilitar la Comunicación:** Ayudar a redactar mensajes claros, empáticos y profesionales entre docentes y familias.
-        4.  **Resolver Dudas:** Contestar preguntas sobre la plataforma PIAR.ai y conceptos de educación inclusiva.
+        4.  **Resolver Dudas:** Contestar preguntas sobre la plataforma PIAR.360 y conceptos de educación inclusiva.
 
         **Contexto Actual:**
         - Rol del Usuario: ${user.role}

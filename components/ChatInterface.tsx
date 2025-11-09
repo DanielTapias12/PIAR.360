@@ -47,7 +47,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, students }) => {
             case 'Familia':
                  return `¡Hola, ${user.name}! Soy tu asistente virtual. Estoy aquí para resolver tus dudas sobre el PIAR, el progreso de tu hijo/a y darte ideas para apoyarlo/a en casa. ¿En qué te puedo ayudar?`;
             default:
-                return `¡Hola! Soy el asistente de PIAR.ai. Estoy aquí para ayudarte a navegar la plataforma o resolver dudas sobre los procesos de inclusión. ¿En qué puedo ayudarte hoy?`;
+                return `¡Hola! Soy el asistente de PIAR.360. Estoy aquí para ayudarte a navegar la plataforma o resolver dudas sobre los procesos de inclusión. ¿En qué puedo ayudarte hoy?`;
         }
     }
     
@@ -194,7 +194,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, students }) => {
                             }
                         }}
                         placeholder="Escribe tu pregunta aquí..."
-                        className="w-full pl-4 pr-12 py-3 border bg-white border-slate-300 rounded-lg focus:ring-sky-500 focus:border-sky-500 transition resize-none text-sm leading-6 max-h-40"
+                        className="w-full pl-4 pr-12 py-3 border bg-slate-100 border-slate-200 rounded-lg focus:ring-sky-500 focus:border-transparent transition resize-none text-sm leading-6 max-h-40"
                         disabled={isLoading}
                     />
                     <button
@@ -204,7 +204,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, students }) => {
                             if (inputElem) inputElem.style.height = 'auto';
                         }}
                         disabled={isLoading || !input.trim()}
-                        className="absolute bottom-2.5 right-2.5 flex items-center justify-center w-9 h-9 bg-sky-600 text-white rounded-lg disabled:bg-slate-400 hover:bg-sky-700 transition-colors"
+                        className="absolute bottom-2.5 right-2.5 flex items-center justify-center w-9 h-9 bg-sky-500 text-white rounded-lg disabled:bg-slate-400 hover:bg-sky-600 transition-colors"
                         aria-label="Enviar mensaje"
                     >
                         <PaperAirplaneIcon className="w-5 h-5" />

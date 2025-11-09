@@ -1,10 +1,19 @@
-export type UserRole = 'Docente' | 'Directivo' | 'Familia';
+export type UserRole = 'Docente' | 'Directivo' | 'Familia' | 'Jefe Maestro';
 
 export interface AuthenticatedUser {
     username: string;
     name: string;
     role: UserRole;
+    password?: string;
     studentId?: string; // Specific to Family role
+    email?: string;
+    age?: string;
+    address?: string;
+    phone?: string;
+    specialization?: string; // For Docente
+    experience?: string;     // For Docente
+    relationship?: string;   // For Familia
+    specificPosition?: string; // For Directivo
 }
 
 export interface Student {

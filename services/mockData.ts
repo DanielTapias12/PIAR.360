@@ -97,19 +97,48 @@ export const MOCK_STUDENTS: Student[] = [
 export let MOCK_USERS: AuthenticatedUser[] = [
     {
         username: 'amorales',
+        password: 'password123',
         name: 'Ana Morales',
         role: 'Docente',
+        email: 'ana.morales@example.com',
+        age: '34',
+        address: 'Calle 100 # 20-30',
+        phone: '3101234567',
+        specialization: 'Pedagogía Inclusiva',
+        experience: '8 años',
     },
     {
         username: 'director',
+        password: 'adminpass',
         name: 'Directora Académica',
         role: 'Directivo',
+        email: 'director@example.com',
+        age: '45',
+        address: 'Avenida Siempre Viva 742',
+        phone: '3207654321',
+        specificPosition: 'Directora Académica',
     },
     {
         username: 'familia.valderrama',
+        password: 'familypass',
         name: 'Familia Valderrama',
         role: 'Familia',
-        studentId: 'st_01' // This family is associated with Carlos Valderrama
+        studentId: 'st_01', // This family is associated with Carlos Valderrama
+        email: 'familia.valderrama@example.com',
+        age: '40',
+        address: 'Carrera 5 # 15-80',
+        phone: '3008889999',
+        relationship: 'Padre/Madre',
+    },
+    {
+        username: 'JefeMaestro',
+        password: 'JMaestro123',
+        name: 'Jefe Maestro',
+        role: 'Jefe Maestro',
+        email: 'jefemaestro@example.com',
+        age: '50',
+        address: 'Oficina Principal',
+        phone: '3012345678',
     }
 ];
 

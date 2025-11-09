@@ -22,17 +22,25 @@ const AssignStrategyModal = ({
     isOpen: boolean;
     onClose: () => void;
     students: Student[];
-    onConfirm: (studentId: string) => void;
+    onConfirm: (studentIds: string[]) => void;
     strategyTitle: string;
 }) => {
-    const [selectedStudentId, setSelectedStudentId] = useState<string>(students[0]?.id || '');
+    const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
 
     if (!isOpen) return null;
 
+    const handleStudentSelect = (studentId: string) => {
+        setSelectedStudentIds(prev =>
+            prev.includes(studentId)
+                ? prev.filter(id => id !== studentId)
+                : [...prev, studentId]
+        );
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (selectedStudentId) {
-            onConfirm(selectedStudentId);
+        if (selectedStudentIds.length > 0) {
+            onConfirm(selectedStudentIds);
         }
     };
 
@@ -50,26 +58,32 @@ const AssignStrategyModal = ({
                 </p>
 
                 <form onSubmit={handleSubmit}>
-                    <label htmlFor="student-select" className="block text-sm font-medium text-slate-700 mb-1">
-                        Selecciona un estudiante:
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Selecciona uno o más estudiantes:
                     </label>
-                    <select
-                        id="student-select"
-                        value={selectedStudentId}
-                        onChange={e => setSelectedStudentId(e.target.value)}
-                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm rounded-md"
-                    >
+                    <div className="max-h-60 overflow-y-auto border border-slate-200 rounded-md p-2 space-y-1 bg-slate-50">
                         {students.length > 0 ? (
-                            students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)
+                            students.map(s => (
+                                <label key={s.id} htmlFor={`student-${s.id}`} className="flex items-center p-2 rounded-md hover:bg-slate-100 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        id={`student-${s.id}`}
+                                        checked={selectedStudentIds.includes(s.id)}
+                                        onChange={() => handleStudentSelect(s.id)}
+                                        className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                                    />
+                                    <span className="ml-3 text-sm text-slate-700">{s.name}</span>
+                                </label>
+                            ))
                         ) : (
-                            <option disabled>No tienes estudiantes asignados</option>
+                            <p className="text-sm text-slate-500 p-4 text-center">No tienes estudiantes asignados.</p>
                         )}
-                    </select>
+                    </div>
                     <div className="mt-6 flex justify-end gap-3">
                         <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50">
                             Cancelar
                         </button>
-                        <button type="submit" disabled={!selectedStudentId} className="px-4 py-2 text-sm font-medium text-white bg-sky-600 border border-transparent rounded-md shadow-sm hover:bg-sky-700 disabled:bg-slate-400">
+                        <button type="submit" disabled={selectedStudentIds.length === 0} className="px-4 py-2 text-sm font-medium text-white bg-sky-600 border border-transparent rounded-md shadow-sm hover:bg-sky-700 disabled:bg-slate-400">
                             Confirmar Asignación
                         </button>
                     </div>
@@ -89,14 +103,31 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategy, onAssign }) => (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
         <h3 className="font-bold text-sky-700">{strategy.title}</h3>
         <p className="mt-2 text-sm text-slate-600 leading-6">{strategy.description}</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-            {strategy.areas.map(area => (
-                <span key={area} className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">{area}</span>
-            ))}
-            {strategy.grades.map(grade => (
-                <span key={grade} className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">{grade}</span>
-            ))}
+        
+        {/* Prominent section for tags */}
+        <div className="mt-4 space-y-3">
+            {strategy.areas.length > 0 && (
+                <div>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Áreas de Aplicación</h4>
+                    <div className="flex flex-wrap gap-2">
+                        {strategy.areas.map(area => (
+                            <span key={area} className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">{area}</span>
+                        ))}
+                    </div>
+                </div>
+            )}
+            {strategy.grades.length > 0 && (
+                <div>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Grados Sugeridos</h4>
+                    <div className="flex flex-wrap gap-2">
+                        {strategy.grades.map(grade => (
+                            <span key={grade} className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">{grade}</span>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
+        
         <div className="mt-4 pt-4 border-t border-slate-100 text-right">
              <button
                 onClick={() => onAssign(strategy)}
@@ -111,7 +142,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategy, onAssign }) => (
 
 interface StrategyBankProps {
     students: Student[];
-    onAssignStrategy: (studentId: string, strategy: Strategy) => void;
+    onAssignStrategy: (studentIds: string[], strategy: Strategy) => void;
 }
 
 const StrategyBank: React.FC<StrategyBankProps> = ({ students, onAssignStrategy }) => {
@@ -150,11 +181,11 @@ const StrategyBank: React.FC<StrategyBankProps> = ({ students, onAssignStrategy 
         setIsModalOpen(true);
     };
 
-    const handleConfirmAssignment = (studentId: string) => {
-        if (selectedStrategy && studentId) {
-            onAssignStrategy(studentId, selectedStrategy);
-            const studentName = students.find(s => s.id === studentId)?.name;
-            setAssignmentSuccess(`Estrategia "${selectedStrategy.title}" asignada a ${studentName}.`);
+    const handleConfirmAssignment = (studentIds: string[]) => {
+        if (selectedStrategy && studentIds.length > 0) {
+            onAssignStrategy(studentIds, selectedStrategy);
+            const plural = studentIds.length > 1;
+            setAssignmentSuccess(`Estrategia "${selectedStrategy.title}" asignada a ${studentIds.length} estudiante${plural ? 's' : ''}.`);
             setTimeout(() => setAssignmentSuccess(''), 4000);
         }
         setIsModalOpen(false);

@@ -1,5 +1,4 @@
-
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import type { Student, Alert } from '../types';
 import { MOCK_INSTITUTIONAL_ALERTS, MOCK_TEACHERS } from '../services/mockData';
@@ -95,7 +94,7 @@ const TeacherProgress = ({ teachers, students }: { teachers: {name: string, phot
 }
 
 const DirectorDashboard: React.FC<DirectorDashboardProps> = ({ students, onSelectStudent }) => {
-
+    
     const { gradeData, complianceData } = useMemo(() => {
         const grades = [...new Set(students.map(s => s.grade))].sort();
         const gradeData = grades.map(grade => {
@@ -119,9 +118,11 @@ const DirectorDashboard: React.FC<DirectorDashboardProps> = ({ students, onSelec
     
     return (
         <div className="p-8 space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-slate-800">Dashboard Institucional</h1>
-                <p className="text-slate-500 mt-1">Supervisión general de la estrategia de inclusión.</p>
+            <div className="flex justify-between items-start">
+                <div>
+                    <h1 className="text-3xl font-bold text-slate-800">Dashboard Institucional</h1>
+                    <p className="text-slate-500 mt-1">Supervisión general de la estrategia de inclusión.</p>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
