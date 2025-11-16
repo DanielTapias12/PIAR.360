@@ -55,9 +55,9 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onRegist
         setIsLoading(false);
 
         if (signUpError) {
-            if (signUpError.message.includes('unique constraint')) {
-                 setError('El nombre de usuario o el correo electrónico ya están en uso.');
-            } else if (signUpError.message.includes('already registered')) {
+            if (signUpError.message.includes('unique constraint') && signUpError.message.includes('username')) {
+                 setError('El nombre de usuario ya está en uso.');
+            } else if (signUpError.message.includes('User already registered')) {
                  setError('Un usuario con este correo electrónico ya está registrado.');
             }
             else {
@@ -102,17 +102,18 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onRegist
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label htmlFor="reg-name" className="block text-sm font-medium text-gray-700">Nombre Completo</label>
-                        <input id="reg-name" type="text" value={name} onChange={e => setName(e.target.value)} required className="mt-1 block w-full px-3 py-2 bg-slate-50 border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm text-gray-900" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="reg-name" className="block text-sm font-medium text-gray-700">Nombre Completo</label>
+                            <input id="reg-name" type="text" value={name} onChange={e => setName(e.target.value)} required className="mt-1 block w-full px-3 py-2 bg-slate-50 border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm text-gray-900" />
+                        </div>
+                         <div>
+                            <label htmlFor="reg-username" className="block text-sm font-medium text-gray-700">Nombre de Usuario</label>
+                            <input id="reg-username" type="text" value={username} onChange={e => setUsername(e.target.value)} required className="mt-1 block w-full px-3 py-2 bg-slate-50 border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm text-gray-900" />
+                        </div>
                     </div>
-                     <div>
-                        <label htmlFor="reg-username" className="block text-sm font-medium text-gray-700">Nombre de Usuario</label>
-                        <input id="reg-username" type="text" value={username} onChange={e => setUsername(e.target.value)} required className="mt-1 block w-full px-3 py-2 bg-slate-50 border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm text-gray-900" />
-                    </div>
-                    
                     <div>
-                        <label htmlFor="reg-email" className="block text-sm font-medium text-gray-700">Correo Electrónico (Contacto)</label>
+                        <label htmlFor="reg-email" className="block text-sm font-medium text-gray-700">Correo Electrónico</label>
                         <input id="reg-email" type="email" value={email} onChange={e => setEmail(e.target.value)} required className="mt-1 block w-full px-3 py-2 bg-slate-50 border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm text-gray-900" />
                     </div>
                     

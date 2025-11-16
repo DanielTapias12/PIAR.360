@@ -17,7 +17,7 @@ Esta aplicación utiliza la API de Google Gemini para potenciar sus característ
 
 ## Configuración de Supabase (¡ACCIÓN OBLIGATORIA!)
 
-Para que la aplicación funcione, necesitas configurar tu base de datos en Supabase.
+Para que la aplicación funcione, necesitas configurar tu base de datos y autenticación en Supabase.
 
 ### 1. Deshabilitar Confirmación de Correo
 
@@ -28,7 +28,15 @@ Para permitir el inicio de sesión inmediato después del registro, debes deshab
 3.  En la sección de **Email**, haz clic para expandirla.
 4.  **Desactiva** el interruptor que dice **"Confirm email"**.
 
-### 2. Ejecutar Script SQL
+### 2. Configurar Recuperación de Contraseña
+
+Para que los enlaces de recuperación de contraseña funcionen, debes configurar la URL de tu sitio.
+
+1.  En el menú de la izquierda, ve a **Authentication** -> **URL Configuration**.
+2.  En el campo **"Site URL"**, introduce la URL donde tu aplicación está desplegada. Para el desarrollo local o en este entorno, suele ser `http://localhost:5173`.
+3.  Guarda los cambios.
+
+### 3. Ejecutar Script SQL
 
 Copia y pega el siguiente script completo en el **SQL Editor** de tu proyecto de Supabase y ejecútalo. Este script creará las tablas, configurará la seguridad (RLS) y añadirá los datos de ejemplo.
 
@@ -136,4 +144,4 @@ END $$;
 
 ## Autenticación
 
-El sistema de autenticación es gestionado por **Supabase Auth**. El registro se realiza directamente en la interfaz, permitiendo a los usuarios crear su propia cuenta con un nombre de usuario y contraseña únicos. El inicio de sesión es inmediato después del registro.
+El sistema de autenticación es gestionado por **Supabase Auth**. El registro se realiza directamente en la interfaz, permitiendo a los usuarios crear su propia cuenta con un **nombre de usuario**, **correo electrónico** y **contraseña**. El inicio de sesión se realiza con el nombre de usuario y la contraseña. El acceso es inmediato después del registro.

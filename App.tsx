@@ -239,10 +239,17 @@ const App: React.FC = () => {
         return { error };
     };
 
+    const handlePasswordReset = async (email: string) => {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin, // Redirects back to the app after password reset
+        });
+        return { error };
+    };
+
     const handleUpdateCredentials = async (newUsername: string, newPassword?: string) => {
         if (!currentUser) return;
 
-        let userUpdates: Partial<AuthenticatedUser> = { username: newUsername };
+        let userUpdates: Partial<Pick<AuthenticatedUser, 'username'>> = { username: newUsername };
         
         // Update username in public.users table
         const { error: profileError } = await supabase.from('users').update({ username: newUsername }).eq('id', currentUser.id);
@@ -330,7 +337,7 @@ const App: React.FC = () => {
     }
 
     if (!currentUser) {
-        return <LoginScreen onLogin={handleLogin} onPublicSignUp={handlePublicSignUp} />;
+        return <LoginScreen onLogin={handleLogin} onPublicSignUp={handlePublicSignUp} onPasswordReset={handlePasswordReset} />;
     }
 
     return (
