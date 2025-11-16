@@ -1,6 +1,32 @@
 
+
 import React from 'react';
-import { MOCK_NOTIFICATIONS } from '../services/mockData';
+import type { Notification } from '../types';
+
+// FIX: Removed import from non-existent module 'mockData' and defined mock data locally.
+const MOCK_NOTIFICATIONS: Notification[] = [
+    {
+        id: '1',
+        title: 'Nuevo PIAR generado',
+        message: 'Se ha generado un nuevo borrador de PIAR para el estudiante Carlos Rodriguez.',
+        timestamp: 'Hace 5 minutos',
+        read: false,
+    },
+    {
+        id: '2',
+        title: 'Alerta de Progreso',
+        message: 'Laura Gómez ha mostrado dificultades en el área de matemáticas esta semana.',
+        timestamp: 'Hace 2 horas',
+        read: false,
+    },
+    {
+        id: '3',
+        title: 'Documento Cargado',
+        message: 'La familia de Ana Martínez ha cargado una nueva evaluación psicopedagógica.',
+        timestamp: 'Ayer',
+        read: true,
+    },
+];
 
 interface NotificationsProps {
     onClose: () => void;
@@ -8,7 +34,7 @@ interface NotificationsProps {
 
 const Notifications: React.FC<NotificationsProps> = ({ onClose }) => {
     return (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-slate-200 z-10">
+        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-slate-200 z-10 top-full">
             <div className="p-4 border-b border-slate-200">
                 <h3 className="font-semibold text-slate-800">Notificaciones</h3>
             </div>

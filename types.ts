@@ -1,37 +1,40 @@
-export type UserRole = 'Docente' | 'Directivo' | 'Familia' | 'Jefe Maestro';
+export type UserRole = 'Docente' | 'Familia' | 'Director';
 
 export interface AuthenticatedUser {
+    id: string; // From Supabase Auth
     username: string;
     name: string;
     role: UserRole;
-    password?: string;
-    studentId?: string; // Specific to Family role
+    student_id?: string; // Specific to Family role, snake_case from DB
     email?: string;
+    is_new_user: boolean; // snake_case from DB
+    
+    // Optional fields not in DB but can be on the object
     age?: string;
     address?: string;
     phone?: string;
     specialization?: string; // For Docente
+    specificPosition?: string; // For Director
     experience?: string;     // For Docente
     relationship?: string;   // For Familia
-    specificPosition?: string; // For Directivo
 }
 
 export interface Student {
     id: string;
     name: string;
-    photoUrl: string;
+    photo_url: string;
     grade: string;
-    riskLevel: 'bajo' | 'medio' | 'alto';
+    risk_level: 'bajo' | 'medio' | 'alto';
     diagnosis: string;
     teacher?: string; // Optional for family view
     documents: Document[];
-    progressEntries: ProgressEntry[];
+    progress_entries: ProgressEntry[];
 }
 
 export interface NewStudentData {
     name: string;
     grade: string;
-    riskLevel: 'bajo' | 'medio' | 'alto';
+    risk_level: 'bajo' | 'medio' | 'alto';
     diagnosis: string;
 }
 

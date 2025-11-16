@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import type { Student, AuthenticatedUser, NewStudentData } from '../types';
 import { SearchIcon, UserPlusIcon, XMarkIcon, CheckCircleIcon, UserMinusIcon } from './icons/Icons';
@@ -27,20 +26,20 @@ const StudentCard: React.FC<StudentCardProps> = ({ student, onSelect, user, onAs
                 className="flex items-center space-x-4 cursor-pointer"
                 onClick={() => onSelect(student)}
             >
-                <img src={student.photoUrl} alt={student.name} className="w-16 h-16 rounded-full" />
+                <img src={student.photo_url} alt={student.name} className="w-16 h-16 rounded-full" />
                 <div className="flex-1">
                     <p className="font-semibold text-slate-800">{student.name}</p>
                     <p className="text-sm text-slate-500">{student.grade}</p>
                 </div>
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${riskColorMap[student.riskLevel]}`}>
-                    Riesgo {student.riskLevel}
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${riskColorMap[student.risk_level]}`}>
+                    Riesgo {student.risk_level}
                 </span>
             </div>
              
-            {(user.role === 'Directivo' || showAssignControls) && student.teacher && (
+            {showAssignControls && student.teacher && (
                 <p className="text-xs text-slate-500 border-t border-slate-100 pt-2 mt-auto">Docente: {student.teacher}</p>
             )}
-            {!student.teacher && (user.role === 'Directivo' || showAssignControls) && (
+            {!student.teacher && showAssignControls && (
                  <p className="text-xs text-slate-400 font-style: italic border-t border-slate-100 pt-2 mt-auto">Estudiante sin asignar</p>
             )}
 
@@ -95,7 +94,7 @@ const RegisterStudentModal = ({
             setError('Todos los campos son obligatorios.');
             return;
         }
-        onSubmit({ name, grade, riskLevel, diagnosis });
+        onSubmit({ name, grade, risk_level: riskLevel, diagnosis });
         // Reset form for next time
         setName('');
         setGrade('Tercero');
@@ -167,7 +166,6 @@ interface FilterButtonProps {
     isActive: boolean;
     onClick: () => void;
 }
-// FIX: Explicitly typed component with React.FC to solve type error when passing 'key' prop in lists.
 const FilterButton: React.FC<FilterButtonProps> = ({ label, isActive, onClick }) => (
     <button
         onClick={onClick}
@@ -187,12 +185,12 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
     const [registerSuccess, setRegisterSuccess] = useState('');
     const [gradeFilter, setGradeFilter] = useState('all');
     const [riskFilter, setRiskFilter] = useState<'all' | 'bajo' | 'medio' | 'alto'>('all');
-
-    const isDirector = user.role === 'Directivo';
+    const [teacherFilter, setTeacherFilter] = useState('all');
     
-    const studentsToDisplay = isDirector || viewMode === 'all' ? allStudents : students;
+    const studentsToDisplay = viewMode === 'all' ? allStudents : students;
     
     const availableGrades = useMemo(() => [...new Set(allStudents.map(s => s.grade))].sort(), [allStudents]);
+    const availableTeachers = useMemo(() => [...new Set(allStudents.filter(s => s.teacher).map(s => s.teacher!))].sort(), [allStudents]);
     
     const riskLevels: { value: 'all' | 'bajo' | 'medio' | 'alto'; label: string }[] = [
         { value: 'all', label: 'Todo Riesgo' },
@@ -204,9 +202,10 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
     const filteredStudents = useMemo(() => studentsToDisplay.filter(student => {
         const nameMatch = student.name.toLowerCase().includes(searchTerm.toLowerCase());
         const gradeMatch = gradeFilter === 'all' || student.grade === gradeFilter;
-        const riskMatch = riskFilter === 'all' || student.riskLevel === riskFilter;
-        return nameMatch && gradeMatch && riskMatch;
-    }), [studentsToDisplay, searchTerm, gradeFilter, riskFilter]);
+        const riskMatch = riskFilter === 'all' || student.risk_level === riskFilter;
+        const teacherMatch = teacherFilter === 'all' || student.teacher === teacherFilter;
+        return nameMatch && gradeMatch && riskMatch && teacherMatch;
+    }), [studentsToDisplay, searchTerm, gradeFilter, riskFilter, teacherFilter]);
 
     
     const handleRegisterSubmit = (data: NewStudentData) => {
@@ -239,8 +238,8 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
             />
             <div className="flex flex-col md:flex-row justify-between items-start mb-4 gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-800">{isDirector ? 'Directorio Institucional' : 'Estudiantes'}</h1>
-                    <p className="text-slate-500 mt-1">{isDirector ? 'Supervise todos los perfiles y PIAR de la institución.' : 'Gestiona los perfiles y PIAR de tus estudiantes.'}</p>
+                    <h1 className="text-3xl font-bold text-slate-800">Estudiantes</h1>
+                    <p className="text-slate-500 mt-1">Gestiona los perfiles y PIAR de tus estudiantes.</p>
                 </div>
                 <div className="w-full md:w-auto flex flex-col sm:flex-row items-center gap-2 flex-shrink-0">
                     <div className="relative w-full sm:w-auto sm:max-w-xs flex-grow">
@@ -255,7 +254,7 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
                             className="w-full pl-10 pr-4 py-2 border bg-white border-slate-200 rounded-lg focus:ring-sky-500 focus:border-sky-500 transition"
                         />
                     </div>
-                     {(user.role === 'Docente' || user.role === 'Directivo') && (
+                     {user.role === 'Docente' && (
                         <button 
                             onClick={() => setIsRegisterModalOpen(true)}
                             className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-sky-500 hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
@@ -267,7 +266,7 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
                 </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center gap-x-6 gap-y-4 mb-6 p-3 bg-slate-100 rounded-xl">
+            <div className="flex flex-col lg:flex-row items-center gap-x-6 gap-y-4 mb-6 p-3 bg-slate-100 rounded-xl">
                 <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-medium text-slate-700 shrink-0">Grado:</span>
                     <div className="flex items-center bg-slate-200/70 rounded-lg p-1 flex-wrap gap-1">
@@ -284,6 +283,20 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
                             <FilterButton key={level.value} label={level.label} isActive={riskFilter === level.value} onClick={() => setRiskFilter(level.value)} />
                         ))}
                     </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium text-slate-700 shrink-0">Docente:</span>
+                     <select
+                        id="teacher-filter"
+                        value={teacherFilter}
+                        onChange={(e) => setTeacherFilter(e.target.value)}
+                        className="py-1.5 pl-3 pr-8 text-sm font-medium bg-white text-slate-700 shadow-sm rounded-lg border-transparent focus:ring-2 focus:ring-sky-500 focus:border-transparent cursor-pointer"
+                    >
+                        <option value="all">Todos los Docentes</option>
+                        {availableTeachers.map(teacher => (
+                            <option key={teacher} value={teacher}>{teacher}</option>
+                        ))}
+                    </select>
                 </div>
             </div>
 

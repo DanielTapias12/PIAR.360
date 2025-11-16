@@ -77,8 +77,8 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ student, onProgress
             )}
             
             <div className="space-y-4">
-                {student.progressEntries.length > 0 ? (
-                    student.progressEntries.map(entry => {
+                {student.progress_entries.length > 0 ? (
+                    student.progress_entries.map(entry => {
                         if (entry.strategy) {
                             return (
                                 <div key={entry.id} className="bg-sky-50 p-4 rounded-lg border-l-4 border-sky-500 animate-fade-in">

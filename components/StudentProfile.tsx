@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import type { Student, Document, ProgressEntry, UserRole } from '../types';
 import { ArrowLeftIcon, DocumentIcon, ChartBarIcon, WandIcon, UserCircleIcon, UploadIcon } from './icons/Icons';
@@ -43,7 +42,7 @@ const StudentProfile: React.FC<StudentProfileProps> = ({ student, onBack, onUpda
     };
 
     const handleProgressAdd = (entry: ProgressEntry) => {
-        const updatedStudent = { ...student, progressEntries: [entry, ...student.progressEntries] };
+        const updatedStudent = { ...student, progress_entries: [entry, ...student.progress_entries] };
         onUpdateStudent(updatedStudent);
     }
 
@@ -219,7 +218,7 @@ const StudentProfile: React.FC<StudentProfileProps> = ({ student, onBack, onUpda
                 <button onClick={onBack} className="p-2 mr-4 rounded-full hover:bg-slate-200 transition-colors">
                     <ArrowLeftIcon className="w-6 h-6 text-slate-600" />
                 </button>
-                <img src={student.photoUrl} alt={student.name} className="w-16 h-16 rounded-full" />
+                <img src={student.photo_url} alt={student.name} className="w-16 h-16 rounded-full" />
                 <div className="ml-4">
                     <h1 className="text-3xl font-bold text-slate-800">{student.name}</h1>
                     <p className="text-slate-500">{student.grade}</p>

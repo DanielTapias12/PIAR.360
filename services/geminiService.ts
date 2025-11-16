@@ -4,7 +4,7 @@ import type { PiarData, Student, AuthenticatedUser, Strategy } from "../types";
 
 // Per guidelines, initialize with a named apiKey object.
 // The API key MUST be obtained exclusively from process.env.API_KEY.
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const piarSchema = {
     type: Type.OBJECT,
@@ -200,9 +200,11 @@ export const getPedagogicalAgentResponse = async (
         name: s.name,
         grade: s.grade,
         diagnosis: s.diagnosis,
-        risk: s.riskLevel,
+        // FIX: Changed riskLevel to risk_level to match the Student type.
+        risk: s.risk_level,
         teacher: s.teacher,
-        progress: s.progressEntries.slice(0, 2).map(p => `${p.date}: ${p.observation}`).join('; ') || 'No hay registros recientes.'
+        // FIX: Changed progressEntries to progress_entries to match the Student type.
+        progress: s.progress_entries.slice(0, 2).map(p => `${p.date}: ${p.observation}`).join('; ') || 'No hay registros recientes.'
     }));
 
     const systemInstruction = `

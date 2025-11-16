@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import type { AuthenticatedUser } from '../types';
-import { HomeIcon, UsersIcon, LogoutIcon, BellIcon, ChatBubbleOvalLeftEllipsisIcon, LightbulbIcon, AcademicCapIcon, Cog6ToothIcon, ServerIcon, ShieldCheckIcon } from './icons/Icons';
+import { HomeIcon, UsersIcon, LogoutIcon, BellIcon, ChatBubbleOvalLeftEllipsisIcon, LightbulbIcon, ShieldCheckIcon, ServerIcon, GraduationCapIcon, UserGroupIcon, Cog6ToothIcon } from './icons/Icons';
 import Notifications from './Notifications';
 
 interface LayoutProps {
     children: React.ReactNode;
     user: AuthenticatedUser;
     onLogout: () => void;
-    setView: (view: 'dashboard' | 'students' | 'assistant' | 'strategies' | 'performance' | 'management') => void;
-    currentView: 'dashboard' | 'students' | 'assistant' | 'strategies' | 'performance' | 'management';
-    directorMode?: 'academic' | 'admin';
-    setDirectorMode?: (mode: 'academic' | 'admin') => void;
+    setView: (view: any) => void;
+    currentView: string;
+    onOpenSettings: () => void;
 }
 
 const NavItem = ({ label, icon, isActive, onClick, disabled }: { label: string, icon: React.FC<any>, isActive: boolean, onClick: () => void, disabled?: boolean }) => {
@@ -32,18 +31,39 @@ const NavItem = ({ label, icon, isActive, onClick, disabled }: { label: string, 
 };
 
 
-const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, setView, currentView, directorMode, setDirectorMode }) => {
+const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, setView, currentView, onOpenSettings }) => {
     const [showNotifications, setShowNotifications] = useState(false);
     
-    const roleName = {
+    const roleName: { [key in AuthenticatedUser['role']]: string } = {
         'Docente': 'Docente',
-        'Directivo': 'Director/a',
-        'Familia': 'Familia',
-        'Jefe Maestro': 'Jefe Maestro (Superadmin)',
+        'Familia': 'Familia/Acudiente',
+        'Director': 'Director',
+    };
+    
+    const renderNavItems = () => {
+        switch(user.role) {
+            case 'Director':
+                return (
+                    <>
+                        <NavItem label="Dashboard Institucional" icon={GraduationCapIcon} isActive={currentView === 'dashboard'} onClick={() => setView('dashboard')} />
+                    </>
+                );
+            case 'Familia':
+                 return <NavItem label="Resumen" icon={HomeIcon} isActive={currentView === 'dashboard'} onClick={() => setView('dashboard')} />;
+            case 'Docente':
+            default:
+                return (
+                    <>
+                        <NavItem label="Dashboard" icon={HomeIcon} isActive={currentView === 'dashboard'} onClick={() => setView('dashboard')} />
+                        <NavItem label="Estudiantes" icon={UsersIcon} isActive={currentView === 'students'} onClick={() => setView('students')} />
+                        <NavItem label="Familias" icon={UserGroupIcon} isActive={currentView === 'families'} onClick={() => setView('families')} />
+                        <NavItem label="Estrategias" icon={LightbulbIcon} isActive={currentView === 'strategies'} onClick={() => setView('strategies')} />
+                        <NavItem label="Asistente IA" icon={ChatBubbleOvalLeftEllipsisIcon} isActive={currentView === 'assistant'} onClick={() => setView('assistant')} />
+                    </>
+                );
+        }
     };
 
-    const isDirectorInAdminMode = user.role === 'Directivo' && directorMode === 'admin';
-    
     return (
         <div className="flex h-screen bg-slate-50">
             {/* Sidebar */}
@@ -56,43 +76,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, setView, curr
                     <p className="text-xs text-slate-500 -mt-1">Asistente de Inclusión</p>
                 </div>
                 <nav className="flex-1 p-4 space-y-2">
-                    {user.role === 'Jefe Maestro' ? (
-                        <>
-                             <NavItem label="Rendimiento" icon={ServerIcon} isActive={currentView === 'performance'} onClick={() => setView('performance')} />
-                             <NavItem label="Administración Total" icon={ShieldCheckIcon} isActive={currentView === 'management'} onClick={() => setView('management')} />
-                        </>
-                    ) : user.role === 'Familia' ? (
-                        <NavItem label="Resumen" icon={HomeIcon} isActive={currentView === 'dashboard'} onClick={() => setView('dashboard')} />
-                    ) : (
-                        <>
-                            <NavItem 
-                                label="Dashboard" 
-                                icon={HomeIcon} 
-                                isActive={currentView === 'dashboard' && !isDirectorInAdminMode} 
-                                onClick={() => !isDirectorInAdminMode && setView('dashboard')}
-                                disabled={isDirectorInAdminMode}
-                            />
-                            <NavItem 
-                                label="Estudiantes" 
-                                icon={UsersIcon} 
-                                isActive={currentView === 'students' && !isDirectorInAdminMode} 
-                                onClick={() => !isDirectorInAdminMode && setView('students')}
-                                disabled={isDirectorInAdminMode}
-                            />
-                             {user.role === 'Docente' && (
-                                <NavItem label="Estrategias" icon={LightbulbIcon} isActive={currentView === 'strategies'} onClick={() => setView('strategies')} />
-                            )}
-                        </>
-                    )}
-                    {user.role !== 'Jefe Maestro' && (
-                        <NavItem 
-                            label="Asistente IA" 
-                            icon={ChatBubbleOvalLeftEllipsisIcon} 
-                            isActive={currentView === 'assistant' && !isDirectorInAdminMode} 
-                            onClick={() => !isDirectorInAdminMode && setView('assistant')}
-                            disabled={isDirectorInAdminMode}
-                        />
-                    )}
+                    {renderNavItems()}
                 </nav>
                 <div className="p-4 border-t border-slate-200">
                     <button onClick={onLogout} className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900">
@@ -116,28 +100,10 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, setView, curr
                             <p className="text-xs text-slate-500">{roleName[user.role]}</p>
                         </div>
                     </div>
-
-                    {user.role === 'Directivo' && directorMode && setDirectorMode && (
-                        <div className="flex items-center bg-slate-100 rounded-lg p-1 space-x-1">
-                            <button 
-                                onClick={() => setDirectorMode('academic')}
-                                className={`flex items-center px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${directorMode === 'academic' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                            >
-                                <AcademicCapIcon className="w-5 h-5 mr-2" />
-                                Gestión Académica
-                            </button>
-                            <button 
-                                onClick={() => setDirectorMode('admin')}
-                                className={`flex items-center px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${directorMode === 'admin' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                            >
-                                <Cog6ToothIcon className="w-5 h-5 mr-2" />
-                                Administración
-                            </button>
-                        </div>
-                    )}
-
-
-                     <div className="relative">
+                     <div className="relative flex items-center gap-2">
+                        <button onClick={onOpenSettings} className="p-2 rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-700">
+                            <Cog6ToothIcon className="w-6 h-6" />
+                        </button>
                         <button onClick={() => setShowNotifications(s => !s)} className="p-2 rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-700">
                             <BellIcon className="w-6 h-6" />
                         </button>

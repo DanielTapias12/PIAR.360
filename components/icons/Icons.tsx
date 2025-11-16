@@ -186,6 +186,14 @@ export const Cog6ToothIcon: React.FC<IconProps> = (props) => (
     </svg>
 );
 
+export const UserGroupIcon: React.FC<IconProps> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-4.67c.61 1.17 1.23 2.5 1.23 3.875a6.375 6.375 0 01-2.25 4.67z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12.066 12.55a4.5 4.5 0 01-6.132-1.037 4.5 4.5 0 011.037-6.132 4.5 4.5 0 016.132 1.037 4.5 4.5 0 01-1.037 6.132z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M18.974 19.32a4.5 4.5 0 01-1.037-6.132 4.5 4.5 0 016.132-1.037 4.5 4.5 0 011.037 6.132 4.5 4.5 0 01-6.132 1.037z" />
+    </svg>
+);
+
 export const ServerIcon: React.FC<IconProps> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 17.25v-.228a4.5 4.5 0 00-.12-1.03l-2.268-9.64a3.375 3.375 0 00-3.285-2.602H7.923a3.375 3.375 0 00-3.285 2.602l-2.268 9.64a4.5 4.5 0 00-.12 1.03v.228m19.5 0a3 3 0 01-3 3H5.25a3 3 0 01-3-3m19.5 0a3 3 0 00-3-3H5.25a3 3 0 00-3 3m16.5 0h.008v.008h-.008v-.008zm-3 0h.008v.008h-.008v-.008z" />

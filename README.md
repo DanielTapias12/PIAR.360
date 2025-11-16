@@ -2,70 +2,112 @@
 
 ## Descripción General
 
-PIAR.360 es una plataforma innovadora impulsada por Inteligencia Artificial (IA), diseñada para transformar la creación, gestión y seguimiento de los Planes Individuales de Ajustes Razonables (PIAR) en el entorno educativo. Siguiendo los lineamientos del Decreto 1421 de 2017 de Colombia, esta herramienta busca facilitar la educación inclusiva, empoderando a docentes, directivos, familias y administradores.
+PIAR.360 es una plataforma innovadora impulsada por Inteligencia Artificial (IA), diseñada para transformar la creación, gestión y seguimiento de los Planes Individuales de Ajustes Razonables (PIAR) en el entorno educativo. Siguiendo los lineamientos del Decreto 1421 de 2017 de Colombia, esta herramienta busca facilitar la educación inclusiva, empoderando a docentes, directivos y familias.
 
-Esta aplicación es una demostración funcional que simula un entorno multi-rol, utilizando la API de Google Gemini para potenciar sus características inteligentes y ofreciendo una gestión integral de la comunidad educativa.
-
-## Características Principales
-
-La plataforma ofrece una experiencia personalizada y potente para cada rol del ecosistema educativo:
-
-### 👑 Rol de Jefe Maestro (Superadministrador)
-El rol con control total sobre la plataforma, diseñado para la administración y supervisión global.
-- **Dashboard de Rendimiento:** Monitorea el estado del sistema con métricas simuladas como usuarios activos y latencia de la API.
-- **Administración Total de Usuarios:** Capacidad para registrar, **editar** y eliminar cualquier tipo de usuario, incluyendo **Directivos**.
-- **Gestión de Credenciales:** Visualiza y **edita las contraseñas** de todos los usuarios para facilitar el soporte.
-- **Asignación de Grados:** Asigna y reasigna docentes a los diferentes grados escolares.
-- **Asignación Familiar:** Vincula a cada estudiante con su correspondiente usuario de familia, construyendo el núcleo de la comunidad.
-- **Perfiles de Usuario Completos:** Edita información detallada de los usuarios, incluyendo datos de contacto y campos específicos de cada rol.
-
-### 👩‍🏫 Rol de Docente
-- **Dashboard Personalizado:** Visualización rápida del estado de los estudiantes a cargo, incluyendo niveles de riesgo y alertas tempranas.
-- **Gestión de Estudiantes:** Directorio completo para **asignarse o quitar la asignación** de estudiantes.
-- **Registro de Estudiantes:** Capacidad para dar de alta a nuevos estudiantes en la plataforma.
-- **Banco de Estrategias:** Busca y **asigna estrategias a múltiples estudiantes a la vez**, optimizando el tiempo.
-- **Generador de PIAR con IA:** Creación de borradores de PIAR coherentes y completos a partir del diagnóstico del estudiante, utilizando la IA de Gemini.
-- **Análisis de Documentos:** Sube un PIAR existente para que la IA lo analice y ofrezca recomendaciones de mejora.
-- **Seguimiento de Progreso:** Registro cronológico de observaciones y avances del estudiante.
-
-### 📈 Rol de Directivo
-- **Dashboard Institucional:** Vista panorámica con métricas sobre cumplimiento de PIAR, distribución de estudiantes y progreso por docente.
-- **Gestión de Usuarios:** Registra docentes y familias. **Elimina usuarios** con un diálogo de confirmación para prevenir errores.
-- **Gestión de Grados:** Asigna docentes responsables para cada grado.
-- **Directorio Completo:** Acceso a los perfiles de todos los estudiantes y docentes de la institución.
-
-### 👨‍👩‍👧‍👦 Rol de Familia
-- **Portal Simplificado:** Una vista clara y sencilla del progreso y los apoyos que recibe el estudiante.
-- **Resumen del PIAR:** Explicación del PIAR en un lenguaje accesible.
-- **Asistente Virtual con IA:** Un chatbot amigable para resolver dudas sobre el PIAR y cómo apoyar al estudiante en casa.
-
-### 🧠 Agente Pedagógico Virtual (IA Central)
-Integrado en la plataforma, este asistente proactivo ofrece apoyo contextualizado a cada rol, ayudando a sugerir estrategias, resumir información y facilitar la comunicación.
-
-## Autenticación
-
-Para acceder a la aplicación, utilice las siguientes credenciales de demostración:
-
-| Rol            | Usuario              | Contraseña   |
-|----------------|----------------------|--------------|
-| Jefe Maestro   | `JefeMaestro`        | `JMaestro123`  |
-| Docente        | `amorales`           | `password123`  |
-| Directivo      | `director`           | `adminpass`    |
-| Familia        | `familia.valderrama` | `familypass`   |
+Esta aplicación utiliza la API de Google Gemini para potenciar sus características inteligentes y **Supabase** para la gestión de la base de datos y la autenticación.
 
 ## Pila Tecnológica (Stack)
 
 - **Frontend:** React, TypeScript, Tailwind CSS
 - **Inteligencia Artificial:** Google Gemini API (`gemini-2.5-pro` y `gemini-2.5-flash`)
+- **Backend y Base de Datos:** Supabase (PostgreSQL, Auth)
 - **Gráficos:** Recharts
-- **Entorno:** La aplicación se ejecuta completamente en el navegador y utiliza `localStorage` para simular la persistencia de datos.
 
-## Ejecución y Configuración
+---
 
-Esta aplicación está diseñada para ejecutarse en un entorno que provea la API Key de Google Gemini a través de la variable de entorno `process.env.API_KEY`. No se requiere un proceso de construcción (`build`) complejo.
+## 🚀 Configuración de Supabase (¡ACCIÓN REQUERIDA!)
 
-1.  Asegúrese de tener un entorno donde la variable `process.env.API_KEY` esté configurada con una clave válida de Google Gemini.
-2.  Sirva los archivos `index.html`, `index.tsx` y el resto de los componentes desde un servidor web simple.
-3.  Abra `index.html` en su navegador.
+Para que la aplicación funcione, necesitas configurar las tablas y las políticas de seguridad en tu base de datos de Supabase. Copia y ejecuta el siguiente script completo en el **Editor de SQL** de tu proyecto de Supabase.
 
-La aplicación manejará el resto, importando los módulos necesarios a través del `importmap` definido en `index.html`.
+### Script de Configuración Inicial y Definitivo
+
+Este script creará las tablas, habilitará la seguridad, establecerá las políticas de acceso correctas y poblará la base de datos con datos de ejemplo. **Este script es seguro para ejecutarse varias veces.**
+
+```sql
+-- ========= CREACIÓN DE TABLAS =========
+-- Usamos IF NOT EXISTS para evitar errores si las tablas ya existen.
+
+-- 1. Tabla de perfiles de usuario
+CREATE TABLE IF NOT EXISTS public.users (
+    id uuid NOT NULL,
+    username text UNIQUE,
+    name text,
+    role text,
+    student_id text,
+    email text,
+    is_new_user boolean DEFAULT true,
+    CONSTRAINT users_pkey PRIMARY KEY (id),
+    CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
+);
+
+-- 2. Tabla de estudiantes
+CREATE TABLE IF NOT EXISTS public.students (
+    id text NOT NULL,
+    name text,
+    photo_url text,
+    grade text,
+    risk_level text,
+    diagnosis text,
+    teacher text,
+    documents jsonb,
+    progress_entries jsonb,
+    CONSTRAINT students_pkey PRIMARY KEY (id)
+);
+
+-- ========= HABILITAR POLÍTICAS DE SEGURIDAD (RLS) =========
+-- Esto se puede ejecutar de forma segura varias veces.
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
+
+-- ========= POLÍTICAS DE ACCESO (RLS) =========
+-- Eliminamos las políticas existentes antes de crearlas para que el script se pueda ejecutar varias veces.
+
+-- Políticas para la tabla 'users'
+DROP POLICY IF EXISTS "Los usuarios autenticados pueden ver todos los perfiles." ON public.users;
+CREATE POLICY "Los usuarios autenticados pueden ver todos los perfiles." ON public.users FOR SELECT USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Los usuarios pueden actualizar su propio perfil." ON public.users;
+CREATE POLICY "Los usuarios pueden actualizar su propio perfil." ON public.users FOR UPDATE USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Los usuarios pueden crear su propio perfil y los directores pueden crear usuarios." ON public.users;
+CREATE POLICY "Los usuarios pueden crear su propio perfil y los directores pueden crear usuarios."
+ON public.users
+FOR INSERT WITH CHECK (
+  (auth.uid() = id) OR
+  ((SELECT role FROM public.users WHERE id = auth.uid()) = 'Director'::text)
+);
+
+
+-- Políticas para la tabla 'students'
+DROP POLICY IF EXISTS "Los usuarios autenticados pueden ver todos los estudiantes." ON public.students;
+CREATE POLICY "Los usuarios autenticados pueden ver todos los estudiantes." ON public.students FOR SELECT USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Solo directores y docentes pueden actualizar estudiantes." ON public.students;
+CREATE POLICY "Solo directores y docentes pueden actualizar estudiantes." ON public.students FOR UPDATE USING (((SELECT role FROM public.users WHERE id = auth.uid()) IN ('Director'::text, 'Docente'::text)));
+
+DROP POLICY IF EXISTS "Solo directores y docentes pueden insertar estudiantes." ON public.students;
+CREATE POLICY "Solo directores y docentes pueden insertar estudiantes." ON public.students FOR INSERT WITH CHECK (((SELECT role FROM public.users WHERE id = auth.uid()) IN ('Director'::text, 'Docente'::text)));
+
+
+-- ========= INSERCIÓN DE DATOS DE EJEMPLO =========
+-- Para evitar duplicados, solo insertamos si la tabla de estudiantes está vacía.
+DO $$
+BEGIN
+   IF NOT EXISTS (SELECT 1 FROM public.students) THEN
+      INSERT INTO public.students (id, name, photo_url, grade, risk_level, diagnosis, teacher, documents, progress_entries) VALUES
+      ('st_01', 'Carlos Valderrama', 'https://picsum.photos/seed/cvalderrama/200', 'Tercero', 'alto', 'Trastorno del Espectro Autista (TEA) Nivel 1, con dificultades en la comunicación social y patrones de comportamiento repetitivos.', 'Ana Morales', '[]', '[]'),
+      ('st_02', 'Sofia Vergara', 'https://picsum.photos/seed/svergara/200', 'Tercero', 'medio', 'Dislexia. Presenta dificultades específicas en la decodificación de palabras y fluidez lectora.', 'Ana Morales', '[]', '[]'),
+      ('st_03', 'Juan Pablo Montoya', 'https://picsum.photos/seed/jpmontoya/200', 'Cuarto', 'bajo', 'Trastorno por Déficit de Atención e Hiperactividad (TDAH), tipo inatento.', 'Carlos Ruiz', '[]', '[]');
+   END IF;
+END $$;
+```
+
+---
+
+## Autenticación
+
+El sistema de autenticación es gestionado por **Supabase Auth** y soporta tres flujos:
+
+1.  **Registro del Primer Director:** En la pantalla de inicio, si no existe ningún director en la base de datos, aparecerá la opción para registrarse con el rol de "Director".
+2.  **Registro Público:** Una vez que existe al menos un director, los nuevos usuarios solo podrán registrarse como "Docente" o "Familia". Recibirán un correo de confirmación para activar su cuenta.
+3.  **Registro por un Director:** Un director ya registrado puede crear cuentas para otros directores, docentes y familias, generando credenciales temporales que el nuevo usuario deberá cambiar en su primer inicio de sesión.

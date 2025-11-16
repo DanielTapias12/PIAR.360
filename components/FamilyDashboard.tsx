@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import type { Student, Document, ProgressEntry } from '../types';
 import { ArrowLeftIcon, DocumentIcon, ChartBarIcon, WandIcon } from './icons/Icons';
@@ -34,7 +35,8 @@ const FamilyDashboard: React.FC<FamilyDashboardProps> = ({ student, onBack }) =>
     return (
         <div className="p-8">
             <header className="flex items-center mb-6">
-                 <img src={student.photoUrl} alt={student.name} className="w-16 h-16 rounded-full" />
+                 {/* FIX: Changed photoUrl to photo_url to match the Student type. */}
+                 <img src={student.photo_url} alt={student.name} className="w-16 h-16 rounded-full" />
                 <div className="ml-4">
                     <h1 className="text-3xl font-bold text-slate-800">Portal Familiar</h1>
                     <p className="text-slate-500">Resumen para {student.name}</p>

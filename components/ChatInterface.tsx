@@ -11,7 +11,6 @@ interface ChatInterfaceProps {
 interface ChatBubbleProps {
     message: ChatMessage;
 }
-// FIX: Explicitly typed as React.FC to solve type error with 'key' prop in lists.
 const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
     const isUser = message.sender === 'user';
     const bubbleClasses = isUser ? 'bg-sky-600 text-white self-end' : 'bg-slate-200 text-slate-800 self-start';
@@ -26,7 +25,6 @@ interface SuggestionChipProps {
     text: string;
     onClick: (text: string) => void;
 }
-// FIX: Explicitly typed as React.FC to solve type error with 'key' prop in lists.
 const SuggestionChip: React.FC<SuggestionChipProps> = ({ text, onClick }) => (
     <button
         onClick={() => onClick(text)}
@@ -42,8 +40,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, students }) => {
         switch (user.role) {
             case 'Docente':
                 return `¡Hola, ${user.name.split(' ')[0]}! Soy tu Agente Pedagógico Virtual. Puedo ayudarte a crear estrategias para tus estudiantes, resumir su progreso o redactar comunicaciones para las familias. ¿Cómo puedo asistirte?`;
-            case 'Directivo':
-                return `¡Hola! Soy el Agente Pedagógico Virtual. Puedo proporcionarte resúmenes institucionales, analizar tendencias y ayudarte a supervisar la implementación de la estrategia de inclusión. ¿Qué necesitas consultar hoy?`;
             case 'Familia':
                  return `¡Hola, ${user.name}! Soy tu asistente virtual. Estoy aquí para resolver tus dudas sobre el PIAR, el progreso de tu hijo/a y darte ideas para apoyarlo/a en casa. ¿En qué te puedo ayudar?`;
             default:
@@ -72,12 +68,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, students }) => {
                     `Sugerir 3 estrategias para ${studentName} en lectoescritura.`,
                     `Resume el progreso reciente de ${studentName}.`,
                     `Ayúdame a redactar un mensaje para la familia de ${studentName}.`
-                ];
-            case 'Directivo':
-                return [
-                    "Dame un resumen de los estudiantes en riesgo alto.",
-                    "¿Cuáles son las barreras de aprendizaje más comunes en la institución?",
-                    "Genera un reporte de cumplimiento de PIAR por docente."
                 ];
             case 'Familia':
                 return [

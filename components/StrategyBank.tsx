@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { getInclusiveStrategies } from '../services/geminiService';
 import type { Student, Strategy } from '../types';
-import { SearchIcon, LightbulbIcon, XMarkIcon, AcademicCapIcon, CheckCircleIcon } from './icons/Icons';
+import { SearchIcon, LightbulbIcon, XMarkIcon, AcademicCapIcon, CheckCircleIcon, ChevronDownIcon } from './icons/Icons';
 
 const LoadingSpinner = () => (
     <div className="flex justify-center items-center p-8">
@@ -99,46 +99,56 @@ interface StrategyCardProps {
     onAssign: (strategy: Strategy) => void;
 }
 
-const StrategyCard: React.FC<StrategyCardProps> = ({ strategy, onAssign }) => (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-        <h3 className="font-bold text-sky-700">{strategy.title}</h3>
-        <p className="mt-2 text-sm text-slate-600 leading-6">{strategy.description}</p>
-        
-        {/* Prominent section for tags */}
-        <div className="mt-4 space-y-3">
-            {strategy.areas.length > 0 && (
-                <div>
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Áreas de Aplicación</h4>
-                    <div className="flex flex-wrap gap-2">
-                        {strategy.areas.map(area => (
-                            <span key={area} className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">{area}</span>
-                        ))}
-                    </div>
+const StrategyCard: React.FC<StrategyCardProps> = ({ strategy, onAssign }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    return (
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <div className="cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+                <div className="flex justify-between items-start">
+                    <h3 className="font-bold text-sky-700 pr-4">{strategy.title}</h3>
+                    <ChevronDownIcon
+                        className={`w-5 h-5 text-slate-400 flex-shrink-0 mt-1 transform transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+                    />
                 </div>
-            )}
-            {strategy.grades.length > 0 && (
-                <div>
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Grados Sugeridos</h4>
-                    <div className="flex flex-wrap gap-2">
-                        {strategy.grades.map(grade => (
-                            <span key={grade} className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">{grade}</span>
-                        ))}
-                    </div>
+                <p className={`mt-2 text-sm text-slate-600 leading-6 ${!isExpanded ? 'line-clamp-3' : ''}`}>
+                    {strategy.description}
+                </p>
+                <div className="mt-4 space-y-3">
+                    {strategy.areas.length > 0 && (
+                        <div>
+                            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Áreas de Aplicación</h4>
+                            <div className="flex flex-wrap gap-2">
+                                {strategy.areas.map(area => (
+                                    <span key={area} className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">{area}</span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    {strategy.grades.length > 0 && (
+                        <div>
+                            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Grados Sugeridos</h4>
+                            <div className="flex flex-wrap gap-2">
+                                {strategy.grades.map(grade => (
+                                    <span key={grade} className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">{grade}</span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
-            )}
+            </div>
+            <div className="mt-4 pt-4 border-t border-slate-100 text-right">
+                 <button
+                    onClick={() => onAssign(strategy)}
+                    className="inline-flex items-center px-3 py-1.5 border border-sky-200 text-sm font-medium rounded-md text-sky-700 bg-sky-50 hover:bg-sky-100 transition-colors"
+                >
+                    <AcademicCapIcon className="w-4 h-4 mr-2"/>
+                    Asignar a Estudiante
+                </button>
+            </div>
         </div>
-        
-        <div className="mt-4 pt-4 border-t border-slate-100 text-right">
-             <button
-                onClick={() => onAssign(strategy)}
-                className="inline-flex items-center px-3 py-1.5 border border-sky-200 text-sm font-medium rounded-md text-sky-700 bg-sky-50 hover:bg-sky-100 transition-colors"
-            >
-                <AcademicCapIcon className="w-4 h-4 mr-2"/>
-                Asignar a Estudiante
-            </button>
-        </div>
-    </div>
-);
+    );
+};
 
 interface StrategyBankProps {
     students: Student[];

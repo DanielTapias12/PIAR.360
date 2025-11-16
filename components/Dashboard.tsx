@@ -2,7 +2,7 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import type { Student, Alert } from '../types';
-import { MOCK_ALERTS } from '../services/mockData';
+// FIX: Removed unused import from non-existent module 'mockData'.
 import { AlertIcon, StudentsIcon, CheckCircleIcon } from './icons/Icons';
 
 interface DashboardProps {
@@ -55,12 +55,12 @@ const Alerts = ({ alerts, students, onSelectStudent }: { alerts: Alert[], studen
 
 
 const Dashboard: React.FC<DashboardProps> = ({ students, onSelectStudent }) => {
-    const highRiskStudents = students.filter(s => s.riskLevel === 'alto');
+    const highRiskStudents = students.filter(s => s.risk_level === 'alto');
 
     const chartData = [
-        { name: 'Bajo', count: students.filter(s => s.riskLevel === 'bajo').length, fill: '#4ade80' },
-        { name: 'Medio', count: students.filter(s => s.riskLevel === 'medio').length, fill: '#facc15' },
-        { name: 'Alto', count: students.filter(s => s.riskLevel === 'alto').length, fill: '#f87171' },
+        { name: 'Bajo', count: students.filter(s => s.risk_level === 'bajo').length, fill: '#4ade80' },
+        { name: 'Medio', count: students.filter(s => s.risk_level === 'medio').length, fill: '#facc15' },
+        { name: 'Alto', count: students.filter(s => s.risk_level === 'alto').length, fill: '#f87171' },
     ];
 
     return (
@@ -89,7 +89,7 @@ const Dashboard: React.FC<DashboardProps> = ({ students, onSelectStudent }) => {
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
-                <Alerts alerts={MOCK_ALERTS} students={students} onSelectStudent={onSelectStudent}/>
+                <Alerts alerts={[]} students={students} onSelectStudent={onSelectStudent}/>
             </div>
         </div>
     );
