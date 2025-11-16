@@ -1,14 +1,15 @@
 import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import type { Student, Alert, AuthenticatedUser } from '../types';
-import { AlertIcon, StudentsIcon, BriefcaseIcon, GraduationCapIcon, UserPlusIcon } from './icons/Icons';
+import { AlertIcon, StudentsIcon, BriefcaseIcon, GraduationCapIcon, UserPlusIcon, CheckCircleIcon } from './icons/Icons';
 
 interface DirectorDashboardProps {
     students: Student[];
     users: AuthenticatedUser[];
     onSelectStudent: (student: Student) => void;
-    onRegisterUserClick: () => void;
     currentUser: AuthenticatedUser;
+    onRegisterStudentClick: () => void;
+    notification: string;
 }
 
 const StatCard = ({ title, value, icon, color }: { title: string, value: string | number, icon: React.FC<any>, color: string }) => {
@@ -55,38 +56,44 @@ const InstitutionalAlerts = ({ alerts, students, onSelectStudent }: { alerts: Al
     </div>
 );
 
-const UserManagement = ({ users, onRegisterUserClick }: { users: AuthenticatedUser[], onRegisterUserClick: () => void }) => {
-    
+const UserDirectory = ({ users }: { users: AuthenticatedUser[] }) => {
     return (
         <div className="bg-white p-6 rounded-xl shadow-sm">
             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-slate-800">Gestión de Usuarios</h3>
-                <button 
-                    onClick={onRegisterUserClick}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
-                >
-                    <UserPlusIcon className="w-4 h-4 mr-2"/>
-                    Registrar Nuevo Usuario
-                </button>
+                <h3 className="text-lg font-semibold text-slate-800">Directorio de Usuarios</h3>
             </div>
-            <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-                {users.map(user => (
-                    <div key={user.username} className="flex items-center p-2 bg-slate-50 rounded-md">
-                         <div className="w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center text-slate-600 font-bold text-sm">
-                           {user.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="ml-3 flex-1">
-                            <p className="text-sm font-semibold text-slate-700">{user.name}</p>
-                            <p className="text-xs text-slate-500">{user.role}</p>
+            <div className="flow-root">
+                <div className="overflow-x-auto -mx-6">
+                    <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+                        <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                            <table className="min-w-full divide-y divide-slate-200">
+                                <thead className="bg-slate-50">
+                                    <tr>
+                                        <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-slate-900 sm:pl-6">Nombre</th>
+                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-slate-900">Rol</th>
+                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-slate-900">Email</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-200 bg-white">
+                                    {users.map(user => (
+                                        <tr key={user.id}>
+                                            <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 sm:pl-6">{user.name}</td>
+                                            <td className="whitespace-nowrap px-3 py-4 text-sm text-slate-500">{user.role}</td>
+                                            <td className="whitespace-nowrap px-3 py-4 text-sm text-slate-500">{user.email}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                ))}
+                </div>
             </div>
         </div>
     );
 };
 
-const DirectorDashboard: React.FC<DirectorDashboardProps> = ({ students, users, onSelectStudent, onRegisterUserClick }) => {
+
+const DirectorDashboard: React.FC<DirectorDashboardProps> = ({ students, users, onSelectStudent, onRegisterStudentClick, notification }) => {
     
     const { gradeData, complianceData, teachers } = useMemo(() => {
         const grades = [...new Set(students.map(s => s.grade))].sort();
@@ -118,7 +125,21 @@ const DirectorDashboard: React.FC<DirectorDashboardProps> = ({ students, users, 
                     <h1 className="text-3xl font-bold text-slate-800">Dashboard Institucional</h1>
                     <p className="text-slate-500 mt-1">Supervisión general de la estrategia de inclusión.</p>
                 </div>
+                <button 
+                    onClick={onRegisterStudentClick}
+                    className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-sky-500 hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
+                >
+                    <UserPlusIcon className="w-5 h-5 mr-2 -ml-1"/>
+                    Registrar Estudiante
+                </button>
             </div>
+             {notification && (
+                 <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-500 text-green-800 rounded-r-lg flex items-center animate-fade-in" role="alert">
+                    <CheckCircleIcon className="w-6 h-6 mr-3"/>
+                    <p className="font-semibold text-sm">{notification}</p>
+                </div>
+            )}
+
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <StatCard title="Total Estudiantes" value={students.length} icon={StudentsIcon} color="bg-indigo-500" />
@@ -178,7 +199,7 @@ const DirectorDashboard: React.FC<DirectorDashboardProps> = ({ students, users, 
 
              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2">
-                     <UserManagement users={users} onRegisterUserClick={onRegisterUserClick} />
+                     <UserDirectory users={users} />
                 </div>
                 <InstitutionalAlerts alerts={[]} students={students} onSelectStudent={onSelectStudent} />
             </div>

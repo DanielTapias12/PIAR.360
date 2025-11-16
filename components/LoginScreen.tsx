@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import type { AuthenticatedUser, UserRole } from '../types';
-import { AuthError } from '@supabase/supabase-js';
-import ForgotPasswordModal from './ForgotPasswordModal';
 import RegisterModal from './RegisterModal';
+import type { AuthError } from '@supabase/supabase-js';
 
 interface LoginScreenProps {
-    onLogin: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-    onPublicSignUp: (data: { name: string; email: string; password: string; role: UserRole }) => Promise<{ error: AuthError | null }>;
-    directorExists: boolean;
+    onLogin: (username: string, password: string) => Promise<{ error: AuthError | null }>;
+    onPublicSignUp: (data: { name: string; username: string; email: string; password: string; role: UserRole }) => Promise<{ error: AuthError | null }>;
 }
 
 const PiarLogoIcon: React.FC<{className?: string}> = ({ className }) => (
@@ -17,12 +15,11 @@ const PiarLogoIcon: React.FC<{className?: string}> = ({ className }) => (
     </svg>
 );
 
-const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onPublicSignUp, directorExists }) => {
-    const [email, setEmail] = useState('');
+const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onPublicSignUp }) => {
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [showForgotPassword, setShowForgotPassword] = useState(false);
     const [showRegister, setShowRegister] = useState(false);
     
     const handleLoginAttempt = async (e: React.FormEvent) => {
@@ -30,10 +27,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onPublicSignUp, dire
         setError('');
         setIsLoading(true);
         
-        const { error: authError } = await onLogin(email, password);
+        const { error: loginError } = await onLogin(username, password);
 
-        if (authError) {
-            setError('Email o contraseña incorrectos. Por favor, verifica tus datos.');
+        if (loginError) {
+            setError(loginError.message || 'Usuario o contraseña incorrectos.');
         }
         
         setIsLoading(false);
@@ -54,21 +51,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onPublicSignUp, dire
                     </div>
                     <form onSubmit={handleLoginAttempt} className="space-y-6">
                         <div>
-                            <label htmlFor="email-input" className="block text-sm font-medium text-gray-700 mb-1.5">Correo Electrónico</label>
-                            <input id="email-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="block w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-400 sm:text-sm transition text-gray-900" autoComplete="email" />
+                            <label htmlFor="username-input" className="block text-sm font-medium text-gray-700 mb-1.5">Nombre de Usuario</label>
+                            <input id="username-input" type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="block w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-400 sm:text-sm transition text-gray-900" autoComplete="username" />
                         </div>
                         <div>
                             <label htmlFor="password-input" className="block text-sm font-medium text-gray-700 mb-1.5">Contraseña</label>
                             <input id="password-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="block w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-400 sm:text-sm transition text-gray-900" autoComplete="current-password" />
                         </div>
                         {error && <p className="text-sm text-red-600 text-center !mt-4">{error}</p>}
-                        <div className="flex items-center justify-end">
-                            <div className="text-sm">
-                                <button type="button" onClick={() => setShowForgotPassword(true)} className="font-medium text-indigo-600 hover:text-indigo-500">
-                                    ¿Olvidaste tu contraseña?
-                                </button>
-                            </div>
-                        </div>
                         <div className="pt-2">
                             <button type="submit" disabled={isLoading} className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-md font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:bg-indigo-400">
                                 {isLoading ? 'Ingresando...' : 'Iniciar sesión'}
@@ -83,8 +73,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onPublicSignUp, dire
                     </div>
                 </div>
             </div>
-            <ForgotPasswordModal isOpen={showForgotPassword} onClose={() => setShowForgotPassword(false)} />
-            <RegisterModal isOpen={showRegister} onClose={() => setShowRegister(false)} onRegister={onPublicSignUp} directorExists={directorExists} />
+            <RegisterModal isOpen={showRegister} onClose={() => setShowRegister(false)} onRegister={onPublicSignUp} />
         </>
     );
 };

@@ -1,13 +1,12 @@
 export type UserRole = 'Docente' | 'Familia' | 'Director';
 
 export interface AuthenticatedUser {
-    id: string; // From Supabase Auth
+    id: string; 
     username: string;
     name: string;
     role: UserRole;
-    student_id?: string; // Specific to Family role, snake_case from DB
-    email?: string;
-    is_new_user: boolean; // snake_case from DB
+    student_id?: string;
+    email: string;
     
     // Optional fields not in DB but can be on the object
     age?: string;

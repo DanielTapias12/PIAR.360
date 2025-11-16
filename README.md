@@ -4,7 +4,7 @@
 
 PIAR.360 es una plataforma innovadora impulsada por Inteligencia Artificial (IA), diseñada para transformar la creación, gestión y seguimiento de los Planes Individuales de Ajustes Razonables (PIAR) en el entorno educativo. Siguiendo los lineamientos del Decreto 1421 de 2017 de Colombia, esta herramienta busca facilitar la educación inclusiva, empoderando a docentes, directivos y familias.
 
-Esta aplicación utiliza la API de Google Gemini para potenciar sus características inteligentes y **Supabase** para la gestión de la base de datos y la autenticación.
+Esta aplicación utiliza la API de Google Gemini para potenciar sus características inteligentes y **Supabase** como backend para la base de datos y la autenticación.
 
 ## Pila Tecnológica (Stack)
 
@@ -15,13 +15,22 @@ Esta aplicación utiliza la API de Google Gemini para potenciar sus característ
 
 ---
 
-## 🚀 Configuración de Supabase (¡ACCIÓN REQUERIDA!)
+## Configuración de Supabase (¡ACCIÓN OBLIGATORIA!)
 
-Para que la aplicación funcione, necesitas configurar las tablas y las políticas de seguridad en tu base de datos de Supabase. Copia y ejecuta el siguiente script completo en el **Editor de SQL** de tu proyecto de Supabase.
+Para que la aplicación funcione, necesitas configurar tu base de datos en Supabase.
 
-### Script de Configuración Inicial y Definitivo
+### 1. Deshabilitar Confirmación de Correo
 
-Este script creará las tablas, habilitará la seguridad, establecerá las políticas de acceso correctas y poblará la base de datos con datos de ejemplo. **Este script es seguro para ejecutarse varias veces.**
+Para permitir el inicio de sesión inmediato después del registro, debes deshabilitar la confirmación por correo electrónico.
+
+1.  Ve a tu proyecto en [Supabase](https://app.supabase.com).
+2.  En el menú de la izquierda, ve a **Authentication** -> **Providers**.
+3.  En la sección de **Email**, haz clic para expandirla.
+4.  **Desactiva** el interruptor que dice **"Confirm email"**.
+
+### 2. Ejecutar Script SQL
+
+Copia y pega el siguiente script completo en el **SQL Editor** de tu proyecto de Supabase y ejecútalo. Este script creará las tablas, configurará la seguridad (RLS) y añadirá los datos de ejemplo.
 
 ```sql
 -- ========= CREACIÓN DE TABLAS =========
@@ -35,7 +44,6 @@ CREATE TABLE IF NOT EXISTS public.users (
     role text,
     student_id text,
     email text,
-    is_new_user boolean DEFAULT true,
     CONSTRAINT users_pkey PRIMARY KEY (id),
     CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 );
@@ -59,6 +67,33 @@ CREATE TABLE IF NOT EXISTS public.students (
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
 
+-- ========= FUNCIÓN Y TRIGGER PARA CREAR PERFILES DE USUARIO AUTOMÁTICAMENTE =========
+-- Crea una función que inserta una fila en public.users cada vez que se crea un nuevo usuario en auth.users
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.users (id, name, email, role, username)
+  values (
+    new.id,
+    new.raw_user_meta_data ->> 'name',
+    new.email,
+    new.raw_user_meta_data ->> 'role',
+    new.raw_user_meta_data ->> 'username'
+  );
+  return new;
+end;
+$$;
+
+-- Crea un trigger que ejecuta la función handle_new_user después de cada inserción en auth.users
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+
 -- ========= POLÍTICAS DE ACCESO (RLS) =========
 -- Eliminamos las políticas existentes antes de crearlas para que el script se pueda ejecutar varias veces.
 
@@ -69,13 +104,8 @@ CREATE POLICY "Los usuarios autenticados pueden ver todos los perfiles." ON publ
 DROP POLICY IF EXISTS "Los usuarios pueden actualizar su propio perfil." ON public.users;
 CREATE POLICY "Los usuarios pueden actualizar su propio perfil." ON public.users FOR UPDATE USING (auth.uid() = id);
 
+-- YA NO SE NECESITA POLÍTICA DE INSERT: El trigger en el backend se encarga de esto de forma segura.
 DROP POLICY IF EXISTS "Los usuarios pueden crear su propio perfil y los directores pueden crear usuarios." ON public.users;
-CREATE POLICY "Los usuarios pueden crear su propio perfil y los directores pueden crear usuarios."
-ON public.users
-FOR INSERT WITH CHECK (
-  (auth.uid() = id) OR
-  ((SELECT role FROM public.users WHERE id = auth.uid()) = 'Director'::text)
-);
 
 
 -- Políticas para la tabla 'students'
@@ -89,7 +119,7 @@ DROP POLICY IF EXISTS "Solo directores y docentes pueden insertar estudiantes." 
 CREATE POLICY "Solo directores y docentes pueden insertar estudiantes." ON public.students FOR INSERT WITH CHECK (((SELECT role FROM public.users WHERE id = auth.uid()) IN ('Director'::text, 'Docente'::text)));
 
 
--- ========= INSERCIÓN DE DATOS DE EJEMPLO =========
+-- ========= INSERCIÓN DE DATOS DE EJEMPO =========
 -- Para evitar duplicados, solo insertamos si la tabla de estudiantes está vacía.
 DO $$
 BEGIN
@@ -106,8 +136,4 @@ END $$;
 
 ## Autenticación
 
-El sistema de autenticación es gestionado por **Supabase Auth** y soporta tres flujos:
-
-1.  **Registro del Primer Director:** En la pantalla de inicio, si no existe ningún director en la base de datos, aparecerá la opción para registrarse con el rol de "Director".
-2.  **Registro Público:** Una vez que existe al menos un director, los nuevos usuarios solo podrán registrarse como "Docente" o "Familia". Recibirán un correo de confirmación para activar su cuenta.
-3.  **Registro por un Director:** Un director ya registrado puede crear cuentas para otros directores, docentes y familias, generando credenciales temporales que el nuevo usuario deberá cambiar en su primer inicio de sesión.
+El sistema de autenticación es gestionado por **Supabase Auth**. El registro se realiza directamente en la interfaz, permitiendo a los usuarios crear su propia cuenta con un nombre de usuario y contraseña únicos. El inicio de sesión es inmediato después del registro.
