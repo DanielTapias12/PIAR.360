@@ -1,14 +1,17 @@
+
 import React, { useState, useMemo } from 'react';
-import type { Student, Document, ProgressEntry, UserRole } from '../types';
-import { ArrowLeftIcon, DocumentIcon, ChartBarIcon, WandIcon, UserCircleIcon, UploadIcon } from './icons/Icons';
+import { ArrowLeftIcon, DocumentIcon, ChartBarIcon, WandIcon, UserCircleIcon, UploadIcon, PencilIcon } from './icons/Icons';
 import PiarGenerator from './PiarGenerator';
 import ProgressTracking from './ProgressTracking';
+import { supabase } from '../services/supabaseClient';
+import type { Student, Document, ProgressEntry, UserRole, AuthenticatedUser } from '../types';
 
 interface StudentProfileProps {
     student: Student;
     onBack: () => void;
     userRole: UserRole;
     onUpdateStudent: (student: Student) => void;
+    allUsers: AuthenticatedUser[];
 }
 
 type ProfileTab = 'info' | 'piar' | 'documents' | 'progress';
@@ -28,12 +31,19 @@ const TabButton = ({ label, icon, isActive, onClick }: { label: string, icon: Re
     );
 };
 
-const StudentProfile: React.FC<StudentProfileProps> = ({ student, onBack, onUpdateStudent }) => {
+const StudentProfile: React.FC<StudentProfileProps> = ({ student, onBack, onUpdateStudent, allUsers }) => {
     const [activeTab, setActiveTab] = useState<ProfileTab>('info');
     const [documentTypeFilter, setDocumentTypeFilter] = useState<'all' | 'informe' | 'evaluacion' | 'PIAR'>('all');
     const [documentSortOrder, setDocumentSortOrder] = useState<'desc' | 'asc'>('desc');
     const [newFile, setNewFile] = useState<File | null>(null);
     const [uploadError, setUploadError] = useState<string>('');
+    const [isUploading, setIsUploading] = useState<boolean>(false);
+    const [isEditing, setIsEditing] = useState<boolean>(false);
+    const [editableStudent, setEditableStudent] = useState<Student>(student);
+
+    const assignedFamilyMember = useMemo(() => {
+        return allUsers.find(user => user.student_id === student.id);
+    }, [allUsers, student.id]);
 
 
     const handleDocumentAdd = (document: Document) => {
@@ -55,7 +65,7 @@ const StudentProfile: React.FC<StudentProfileProps> = ({ student, onBack, onUpda
         }
     };
 
-    const handleFileUpload = (event: React.FormEvent) => {
+    const handleFileUpload = async (event: React.FormEvent) => {
         event.preventDefault();
         if (!newFile) {
             setUploadError('Por favor, selecciona un archivo para subir.');
@@ -74,27 +84,52 @@ const StudentProfile: React.FC<StudentProfileProps> = ({ student, onBack, onUpda
             setUploadError('El archivo es demasiado grande. El límite es de 5MB.');
             return;
         }
-
-        // Determine document type from name for mock data
-        let docType: 'informe' | 'evaluacion' | 'PIAR' = 'informe';
-        const fileNameLower = newFile.name.toLowerCase();
-        if (fileNameLower.includes('evaluacion')) docType = 'evaluacion';
-        if (fileNameLower.includes('piar')) docType = 'PIAR';
-
-        const newDocument: Document = {
-            id: `doc_${Date.now()}`,
-            name: newFile.name,
-            type: docType,
-            uploadDate: new Date().toISOString().split('T')[0],
-            url: '#', // In a real app, this would be a URL to the stored file
-        };
-
-        handleDocumentAdd(newDocument);
-        setNewFile(null);
+        
+        setIsUploading(true);
         setUploadError('');
-         // Reset the file input visually
-        const fileInput = document.getElementById('file-upload') as HTMLInputElement;
-        if (fileInput) fileInput.value = '';
+
+        try {
+            const filePath = `${student.id}/${Date.now()}_${newFile.name}`;
+            const { error: uploadError } = await supabase.storage
+                .from('student_documents')
+                .upload(filePath, newFile);
+
+            if (uploadError) {
+                throw uploadError;
+            }
+
+            const { data: urlData } = supabase.storage
+                .from('student_documents')
+                .getPublicUrl(filePath);
+
+            if (!urlData || !urlData.publicUrl) {
+                throw new Error("No se pudo obtener la URL pública del archivo.");
+            }
+
+            let docType: 'informe' | 'evaluacion' | 'PIAR' = 'informe';
+            const fileNameLower = newFile.name.toLowerCase();
+            if (fileNameLower.includes('evaluacion')) docType = 'evaluacion';
+            if (fileNameLower.includes('piar')) docType = 'PIAR';
+
+            const newDocument: Document = {
+                id: `doc_${Date.now()}`,
+                name: newFile.name,
+                type: docType,
+                uploadDate: new Date().toISOString().split('T')[0],
+                url: urlData.publicUrl,
+            };
+
+            handleDocumentAdd(newDocument);
+            setNewFile(null);
+            const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+            if (fileInput) fileInput.value = '';
+
+        } catch (error: any) {
+            console.error("Error uploading file:", error);
+            setUploadError(`Error al subir el archivo: ${error.message}`);
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     const filteredAndSortedDocuments = useMemo(() => {
@@ -115,25 +150,92 @@ const StudentProfile: React.FC<StudentProfileProps> = ({ student, onBack, onUpda
         return documents;
     }, [student.documents, documentTypeFilter, documentSortOrder]);
 
+    const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setEditableStudent(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSaveChanges = () => {
+        onUpdateStudent(editableStudent);
+        setIsEditing(false);
+    };
+
+    const renderInfoTabContent = () => {
+        if (isEditing) {
+            return (
+                <div className="p-6 space-y-4">
+                    <div>
+                        <label htmlFor="name" className="block text-sm font-medium text-slate-700">Nombre Completo</label>
+                        <input type="text" id="name" name="name" value={editableStudent.name} onChange={handleEditChange} className="mt-1 input-field" />
+                    </div>
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                         <div>
+                            <label htmlFor="grade" className="block text-sm font-medium text-slate-700">Grado</label>
+                            <input type="text" id="grade" name="grade" value={editableStudent.grade} onChange={handleEditChange} className="mt-1 input-field" />
+                        </div>
+                         <div>
+                            <label htmlFor="risk_level" className="block text-sm font-medium text-slate-700">Nivel de Riesgo</label>
+                            <select id="risk_level" name="risk_level" value={editableStudent.risk_level} onChange={handleEditChange} className="mt-1 input-field">
+                                <option value="bajo">Bajo</option>
+                                <option value="medio">Medio</option>
+                                <option value="alto">Alto</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label htmlFor="diagnosis" className="block text-sm font-medium text-slate-700">Diagnóstico / Resumen</label>
+                        <textarea id="diagnosis" name="diagnosis" rows={4} value={editableStudent.diagnosis} onChange={handleEditChange} className="mt-1 input-field" />
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                        <button onClick={() => setIsEditing(false)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50">Cancelar</button>
+                        <button onClick={handleSaveChanges} className="px-4 py-2 text-sm font-medium text-white bg-sky-600 border border-transparent rounded-md shadow-sm hover:bg-sky-700">Guardar Cambios</button>
+                    </div>
+                </div>
+            )
+        }
+        
+        return (
+            <div className="p-6">
+                <div className="flex justify-between items-start">
+                    <h3 className="text-xl font-bold text-slate-800">Información del Estudiante</h3>
+                    <button onClick={() => setIsEditing(true)} className="inline-flex items-center px-3 py-1.5 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50">
+                        <PencilIcon className="w-4 h-4 mr-2" />
+                        Editar Perfil
+                    </button>
+                </div>
+                <div className="mt-4 space-y-3 text-sm text-slate-700">
+                    <p><span className="font-semibold w-24 inline-block">Nombre:</span> {student.name}</p>
+                    <p><span className="font-semibold w-24 inline-block">Grado:</span> {student.grade}</p>
+                    <p><span className="font-semibold w-24 inline-block">Docentes:</span> {student.teachers && student.teachers.length > 0 ? student.teachers.join(', ') : 'Sin Asignar'}</p>
+                    <div>
+                        <p className="font-semibold">Diagnóstico / Resumen:</p>
+                        <p className="mt-1 text-slate-600 bg-slate-50 p-3 rounded-md border border-slate-200">{student.diagnosis}</p>
+                    </div>
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-slate-200">
+                    <h3 className="text-xl font-bold text-slate-800">Información del Acudiente</h3>
+                    {assignedFamilyMember ? (
+                         <div className="mt-4 space-y-3 text-sm text-slate-700">
+                            <p><span className="font-semibold w-24 inline-block">Nombre:</span> {assignedFamilyMember.name}</p>
+                            <p><span className="font-semibold w-24 inline-block">Parentesco:</span> {assignedFamilyMember.relationship || 'No especificado'}</p>
+                            <p><span className="font-semibold w-24 inline-block">Email:</span> <a href={`mailto:${assignedFamilyMember.email}`} className="text-sky-600 hover:underline">{assignedFamilyMember.email}</a></p>
+                            <p><span className="font-semibold w-24 inline-block">Teléfono:</span> {assignedFamilyMember.phone || 'No especificado'}</p>
+                        </div>
+                    ) : (
+                        <p className="mt-4 text-sm text-slate-500">No hay un acudiente asignado a este estudiante.</p>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     const renderTabContent = () => {
         switch (activeTab) {
             case 'info':
-                return (
-                    <div className="p-6">
-                        <h3 className="text-xl font-bold text-slate-800">Información del Estudiante</h3>
-                        <div className="mt-4 space-y-3 text-sm text-slate-700">
-                            <p><span className="font-semibold w-24 inline-block">Nombre:</span> {student.name}</p>
-                            <p><span className="font-semibold w-24 inline-block">Grado:</span> {student.grade}</p>
-                            <p><span className="font-semibold w-24 inline-block">Docente:</span> {student.teacher}</p>
-                            <div>
-                                <p className="font-semibold">Diagnóstico / Resumen:</p>
-                                <p className="mt-1 text-slate-600 bg-slate-50 p-3 rounded-md border border-slate-200">{student.diagnosis}</p>
-                            </div>
-                        </div>
-                    </div>
-                );
+                return renderInfoTabContent();
             case 'piar':
-                return <PiarGenerator student={student} onDocumentAdd={handleDocumentAdd} />;
+                return <PiarGenerator student={student} onDocumentAdd={handleDocumentAdd} onUpdateStudent={onUpdateStudent} />;
             case 'documents':
                  return (
                     <div className="p-6">
@@ -148,9 +250,15 @@ const StudentProfile: React.FC<StudentProfileProps> = ({ student, onBack, onUpda
                                     <label htmlFor="file-upload" className="sr-only">Choose file</label>
                                     <input type="file" id="file-upload" onChange={handleFileChange} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"/>
                                 </div>
-                                <button type="submit" className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-sky-600 hover:bg-sky-700">
-                                    <UploadIcon className="w-5 h-5 mr-2" />
-                                    Subir Archivo
+                                <button type="submit" disabled={isUploading || !newFile} className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-sky-600 hover:bg-sky-700 disabled:bg-slate-400">
+                                    {isUploading ? (
+                                        'Subiendo...'
+                                    ) : (
+                                        <>
+                                            <UploadIcon className="w-5 h-5 mr-2" />
+                                            Subir Archivo
+                                        </>
+                                    )}
                                 </button>
                             </div>
                             {uploadError && <p className="text-sm text-red-600 mt-2">{uploadError}</p>}
@@ -190,7 +298,11 @@ const StudentProfile: React.FC<StudentProfileProps> = ({ student, onBack, onUpda
                                         <tbody className="divide-y divide-slate-200 bg-white">
                                             {filteredAndSortedDocuments.map((doc) => (
                                                 <tr key={doc.id}>
-                                                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-sky-600 hover:underline cursor-pointer sm:pl-0">{doc.name}</td>
+                                                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-sky-600 sm:pl-0">
+                                                        <a href={doc.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                                            {doc.name}
+                                                        </a>
+                                                    </td>
                                                     <td className="whitespace-nowrap px-3 py-4 text-sm text-slate-500 capitalize">{doc.type}</td>
                                                     <td className="whitespace-nowrap px-3 py-4 text-sm text-slate-500">{new Date(doc.uploadDate).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
                                                 </tr>
@@ -214,6 +326,26 @@ const StudentProfile: React.FC<StudentProfileProps> = ({ student, onBack, onUpda
     
     return (
         <div className="p-8">
+            <style>{`
+                .input-field {
+                    display: block;
+                    width: 100%;
+                    border-radius: 0.375rem;
+                    border: 1px solid #cbd5e1;
+                    padding: 0.5rem 0.75rem;
+                    font-size: 0.875rem;
+                    line-height: 1.25rem;
+                    background-color: #f8fafc;
+                    color: #1e293b;
+                    transition: box-shadow 0.15s ease-in-out, border-color 0.15s ease-in-out;
+                }
+                .input-field:focus {
+                    outline: 2px solid transparent;
+                    outline-offset: 2px;
+                    border-color: #0ea5e9;
+                    box-shadow: 0 0 0 2px #38bdf8;
+                }
+            `}</style>
             <header className="flex items-center mb-6">
                 <button onClick={onBack} className="p-2 mr-4 rounded-full hover:bg-slate-200 transition-colors">
                     <ArrowLeftIcon className="w-6 h-6 text-slate-600" />

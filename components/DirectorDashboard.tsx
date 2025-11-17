@@ -1,15 +1,24 @@
+
+
 import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import type { Student, Alert, AuthenticatedUser } from '../types';
-import { AlertIcon, StudentsIcon, BriefcaseIcon, GraduationCapIcon, UserPlusIcon, CheckCircleIcon } from './icons/Icons';
+import { AlertIcon, StudentsIcon, BriefcaseIcon, GraduationCapIcon, UserPlusIcon } from './icons/Icons';
+import type { Student, AuthenticatedUser } from '../types';
+
+
+interface Alert {
+    id: string;
+    studentId: string;
+    studentName: string;
+    message: string;
+    timestamp: string;
+}
 
 interface DirectorDashboardProps {
     students: Student[];
     users: AuthenticatedUser[];
     onSelectStudent: (student: Student) => void;
-    currentUser: AuthenticatedUser;
     onRegisterStudentClick: () => void;
-    notification: string;
 }
 
 const StatCard = ({ title, value, icon, color }: { title: string, value: string | number, icon: React.FC<any>, color: string }) => {
@@ -71,7 +80,7 @@ const UserDirectory = ({ users }: { users: AuthenticatedUser[] }) => {
                                     <tr>
                                         <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-slate-900 sm:pl-6">Nombre</th>
                                         <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-slate-900">Rol</th>
-                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-slate-900">Email</th>
+                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-slate-900">Username</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-200 bg-white">
@@ -79,7 +88,7 @@ const UserDirectory = ({ users }: { users: AuthenticatedUser[] }) => {
                                         <tr key={user.id}>
                                             <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 sm:pl-6">{user.name}</td>
                                             <td className="whitespace-nowrap px-3 py-4 text-sm text-slate-500">{user.role}</td>
-                                            <td className="whitespace-nowrap px-3 py-4 text-sm text-slate-500">{user.email}</td>
+                                            <td className="whitespace-nowrap px-3 py-4 text-sm text-slate-500">{user.username}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -93,7 +102,7 @@ const UserDirectory = ({ users }: { users: AuthenticatedUser[] }) => {
 };
 
 
-const DirectorDashboard: React.FC<DirectorDashboardProps> = ({ students, users, onSelectStudent, onRegisterStudentClick, notification }) => {
+const DirectorDashboard: React.FC<DirectorDashboardProps> = ({ students, users, onSelectStudent, onRegisterStudentClick }) => {
     
     const { gradeData, complianceData, teachers } = useMemo(() => {
         const grades = [...new Set(students.map(s => s.grade))].sort();
@@ -133,13 +142,6 @@ const DirectorDashboard: React.FC<DirectorDashboardProps> = ({ students, users, 
                     Registrar Estudiante
                 </button>
             </div>
-             {notification && (
-                 <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-500 text-green-800 rounded-r-lg flex items-center animate-fade-in" role="alert">
-                    <CheckCircleIcon className="w-6 h-6 mr-3"/>
-                    <p className="font-semibold text-sm">{notification}</p>
-                </div>
-            )}
-
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <StatCard title="Total Estudiantes" value={students.length} icon={StudentsIcon} color="bg-indigo-500" />

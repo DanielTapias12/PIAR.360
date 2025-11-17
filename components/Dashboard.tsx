@@ -1,9 +1,17 @@
 
+
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import type { Student, Alert } from '../types';
-// FIX: Removed unused import from non-existent module 'mockData'.
 import { AlertIcon, StudentsIcon, CheckCircleIcon } from './icons/Icons';
+import type { Student } from '../types';
+
+interface Alert {
+    id: string;
+    studentId: string;
+    studentName: string;
+    message: string;
+    timestamp: string;
+}
 
 interface DashboardProps {
     students: Student[];
@@ -29,7 +37,7 @@ const Alerts = ({ alerts, students, onSelectStudent }: { alerts: Alert[], studen
     <div className="bg-white p-6 rounded-xl shadow-sm">
         <h3 className="text-lg font-semibold text-slate-800 mb-4">Alertas Tempranas</h3>
         <div className="space-y-4">
-            {alerts.map(alert => (
+            {alerts.length > 0 ? alerts.map(alert => (
                 <div key={alert.id} className="flex items-start">
                     <AlertIcon className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
                     <div className="ml-3">
@@ -48,7 +56,7 @@ const Alerts = ({ alerts, students, onSelectStudent }: { alerts: Alert[], studen
                         <p className="text-xs text-slate-400">{alert.timestamp}</p>
                     </div>
                 </div>
-            ))}
+            )) : <p className="text-sm text-slate-400 text-center py-4">No hay alertas recientes.</p>}
         </div>
     </div>
 );
@@ -56,6 +64,7 @@ const Alerts = ({ alerts, students, onSelectStudent }: { alerts: Alert[], studen
 
 const Dashboard: React.FC<DashboardProps> = ({ students, onSelectStudent }) => {
     const highRiskStudents = students.filter(s => s.risk_level === 'alto');
+    const completedPiarCount = students.filter(s => s.documents.some(d => d.type === 'PIAR')).length;
 
     const chartData = [
         { name: 'Bajo', count: students.filter(s => s.risk_level === 'bajo').length, fill: '#4ade80' },
@@ -73,7 +82,7 @@ const Dashboard: React.FC<DashboardProps> = ({ students, onSelectStudent }) => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <StatCard title="Total Estudiantes" value={students.length} icon={StudentsIcon} color="bg-sky-500" />
                 <StatCard title="Estudiantes en Riesgo Alto" value={highRiskStudents.length} icon={AlertIcon} color="bg-red-500" />
-                <StatCard title="PIAR Completados" value="12" icon={CheckCircleIcon} color="bg-green-500" />
+                <StatCard title="PIAR Completados" value={`${completedPiarCount} de ${students.length}`} icon={CheckCircleIcon} color="bg-green-500" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

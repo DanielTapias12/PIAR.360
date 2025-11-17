@@ -1,7 +1,8 @@
+
+
 import React, { useState, useMemo } from 'react';
-import type { Student, AuthenticatedUser, NewStudentData } from '../types';
 import { SearchIcon, UserPlusIcon, XMarkIcon, CheckCircleIcon, UserMinusIcon } from './icons/Icons';
-import RegisterStudentModal from './RegisterStudentModal';
+import type { AuthenticatedUser, Student } from '../types';
 
 interface StudentCardProps {
     student: Student;
@@ -18,8 +19,7 @@ const StudentCard: React.FC<StudentCardProps> = ({ student, onSelect, user, onAs
         medio: 'bg-yellow-100 text-yellow-800',
         alto: 'bg-red-100 text-red-800',
     };
-    const isAssignedToMe = student.teacher === user.name;
-    const isAssigned = !!student.teacher;
+    const isAssignedToMe = student.teachers && student.teachers.includes(user.name);
 
     return (
         <div className="bg-white rounded-xl shadow-md p-4 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ease-in-out space-y-3">
@@ -37,10 +37,10 @@ const StudentCard: React.FC<StudentCardProps> = ({ student, onSelect, user, onAs
                 </span>
             </div>
              
-            {showAssignControls && student.teacher && (
-                <p className="text-xs text-slate-500 border-t border-slate-100 pt-2 mt-auto">Docente: {student.teacher}</p>
+            {showAssignControls && student.teachers && student.teachers.length > 0 && (
+                <p className="text-xs text-slate-500 border-t border-slate-100 pt-2 mt-auto">Docentes: {student.teachers.join(', ')}</p>
             )}
-            {!student.teacher && showAssignControls && (
+            {showAssignControls && (!student.teachers || student.teachers.length === 0) && (
                  <p className="text-xs text-slate-400 font-style: italic border-t border-slate-100 pt-2 mt-auto">Estudiante sin asignar</p>
             )}
 
@@ -52,16 +52,15 @@ const StudentCard: React.FC<StudentCardProps> = ({ student, onSelect, user, onAs
                             className="w-full flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-amber-500 hover:bg-amber-600 transition-colors"
                         >
                             <UserMinusIcon className="w-4 h-4 mr-2" />
-                            Quitar asignación
+                            Quitar mi asignación
                         </button>
                     ) : (
                         <button
                             onClick={() => onAssign(student.id)}
-                            disabled={isAssigned}
-                            className="w-full flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-sky-500 hover:bg-sky-600 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
+                            className="w-full flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-sky-500 hover:bg-sky-600 transition-colors"
                         >
                             <UserPlusIcon className="w-4 h-4 mr-2" />
-                            {isAssigned ? 'Asignado a otro' : 'Asignarme'}
+                            Asignarme
                         </button>
                     )}
                 </div>
@@ -78,7 +77,7 @@ interface StudentListProps {
     user: AuthenticatedUser;
     onAssignStudent: (studentId: string) => void;
     onUnassignStudent: (studentId: string) => void;
-    onRegisterStudent: (data: NewStudentData) => void;
+    onRegisterStudentClick: () => void;
 }
 
 interface FilterButtonProps {
@@ -98,11 +97,9 @@ const FilterButton: React.FC<FilterButtonProps> = ({ label, isActive, onClick })
 );
 
 
-const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSelectStudent, user, onAssignStudent, onUnassignStudent, onRegisterStudent }) => {
+const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSelectStudent, user, onAssignStudent, onUnassignStudent, onRegisterStudentClick }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [viewMode, setViewMode] = useState<'mine' | 'all'>('mine');
-    const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
-    const [registerSuccess, setRegisterSuccess] = useState('');
     const [gradeFilter, setGradeFilter] = useState('all');
     const [riskFilter, setRiskFilter] = useState<'all' | 'bajo' | 'medio' | 'alto'>('all');
     const [teacherFilter, setTeacherFilter] = useState('all');
@@ -110,7 +107,10 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
     const studentsToDisplay = viewMode === 'all' ? allStudents : students;
     
     const availableGrades = useMemo(() => [...new Set(allStudents.map(s => s.grade))].sort(), [allStudents]);
-    const availableTeachers = useMemo(() => [...new Set(allStudents.filter(s => s.teacher).map(s => s.teacher!))].sort(), [allStudents]);
+    const availableTeachers = useMemo(() => {
+        const allTeachers = allStudents.flatMap(s => s.teachers || []);
+        return [...new Set(allTeachers)].sort();
+    }, [allStudents]);
     
     const riskLevels: { value: 'all' | 'bajo' | 'medio' | 'alto'; label: string }[] = [
         { value: 'all', label: 'Todo Riesgo' },
@@ -123,17 +123,9 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
         const nameMatch = student.name.toLowerCase().includes(searchTerm.toLowerCase());
         const gradeMatch = gradeFilter === 'all' || student.grade === gradeFilter;
         const riskMatch = riskFilter === 'all' || student.risk_level === riskFilter;
-        const teacherMatch = teacherFilter === 'all' || student.teacher === teacherFilter;
+        const teacherMatch = teacherFilter === 'all' || (student.teachers && student.teachers.includes(teacherFilter));
         return nameMatch && gradeMatch && riskMatch && teacherMatch;
     }), [studentsToDisplay, searchTerm, gradeFilter, riskFilter, teacherFilter]);
-
-    
-    const handleRegisterSubmit = (data: NewStudentData) => {
-        onRegisterStudent(data);
-        setIsRegisterModalOpen(false);
-        setRegisterSuccess(`¡Estudiante ${data.name} registrado con éxito!`);
-        setTimeout(() => setRegisterSuccess(''), 4000);
-    };
 
     const ModeButton = ({ label, targetMode }: { label: string; targetMode: 'mine' | 'all' }) => {
         const isActive = viewMode === targetMode;
@@ -151,18 +143,22 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
 
     return (
         <div className="p-8">
-            <RegisterStudentModal
-                isOpen={isRegisterModalOpen}
-                onClose={() => setIsRegisterModalOpen(false)}
-                onSubmit={handleRegisterSubmit}
-            />
             <div className="flex flex-col md:flex-row justify-between items-start mb-4 gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-800">Estudiantes</h1>
                     <p className="text-slate-500 mt-1">Gestiona los perfiles y PIAR de tus estudiantes.</p>
                 </div>
-                <div className="w-full md:w-auto flex flex-col sm:flex-row items-center gap-2 flex-shrink-0">
-                    <div className="relative w-full sm:w-auto sm:max-w-xs flex-grow">
+                 <div className="flex items-center gap-4">
+                    {user.role === 'Docente' && (
+                        <button 
+                            onClick={onRegisterStudentClick}
+                            className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-sky-500 hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
+                        >
+                            <UserPlusIcon className="w-5 h-5 mr-2 -ml-1"/>
+                            Registrar Estudiante
+                        </button>
+                    )}
+                     <div className="relative w-full sm:w-auto sm:max-w-xs flex-grow">
                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <SearchIcon className="w-5 h-5 text-slate-400" />
                         </div>
@@ -174,15 +170,6 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
                             className="w-full pl-10 pr-4 py-2 border bg-white border-slate-200 rounded-lg focus:ring-sky-500 focus:border-sky-500 transition"
                         />
                     </div>
-                     {user.role === 'Docente' && (
-                        <button 
-                            onClick={() => setIsRegisterModalOpen(true)}
-                            className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-sky-500 hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
-                        >
-                            <UserPlusIcon className="w-5 h-5 mr-2 -ml-1"/>
-                            Registrar
-                        </button>
-                     )}
                 </div>
             </div>
 
@@ -219,13 +206,6 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
                     </select>
                 </div>
             </div>
-
-            {registerSuccess && (
-                 <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-500 text-green-800 rounded-r-lg flex items-center animate-fade-in" role="alert">
-                    <CheckCircleIcon className="w-6 h-6 mr-3"/>
-                    <p className="font-semibold text-sm">{registerSuccess}</p>
-                </div>
-            )}
             
              {user.role === 'Docente' && (
                 <div className="mb-6 border-b border-slate-200">

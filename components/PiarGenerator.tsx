@@ -1,14 +1,18 @@
 
+
 import React, { useState, useCallback, useEffect } from 'react';
-import type { Student, PiarData, Document } from '../types';
 import { generatePiar, analyzePiar } from '../services/geminiService';
 import { WandIcon, ExportIcon, SaveIcon, TrashIcon, PlusIcon, UploadIcon, CheckCircleIcon } from './icons/Icons';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import type { PiarData, Document, Student } from '../types';
 
 type PiarMode = 'generate' | 'analyze';
 
 interface PiarGeneratorProps {
     student: Student;
     onDocumentAdd: (document: Document) => void;
+    onUpdateStudent: (student: Student) => void;
 }
 
 const LoadingSpinner = ({ text }: { text: string }) => (
@@ -22,7 +26,7 @@ const LoadingSpinner = ({ text }: { text: string }) => (
     </div>
 );
 
-const PiarGenerator: React.FC<PiarGeneratorProps> = ({ student, onDocumentAdd }) => {
+const PiarGenerator: React.FC<PiarGeneratorProps> = ({ student, onDocumentAdd, onUpdateStudent }) => {
     const [piarData, setPiarData] = useState<PiarData | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
@@ -36,18 +40,18 @@ const PiarGenerator: React.FC<PiarGeneratorProps> = ({ student, onDocumentAdd })
     const [analysisError, setAnalysisError] = useState<string | null>(null);
     const [analysisSuccess, setAnalysisSuccess] = useState<boolean>(false);
 
-    const localStorageKey = `piar_data_${student.id}`;
-
     useEffect(() => {
-        try {
-            const savedData = localStorage.getItem(localStorageKey);
-            if (savedData) {
-                setPiarData(JSON.parse(savedData));
-            }
-        } catch (e) {
-            console.error("Failed to load PIAR data from localStorage", e);
+        // Load PIAR data from the most recent PIAR document in the student prop
+        const piarDoc = student.documents
+            .filter(d => d.type === 'PIAR' && d.content)
+            .sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime())[0];
+        
+        if (piarDoc && piarDoc.content) {
+            setPiarData(piarDoc.content as PiarData);
+        } else {
+            setPiarData(null);
         }
-    }, [localStorageKey]);
+    }, [student.documents]);
 
     const handleGenerate = useCallback(async () => {
         setIsLoading(true);
@@ -58,7 +62,15 @@ const PiarGenerator: React.FC<PiarGeneratorProps> = ({ student, onDocumentAdd })
             const data = await generatePiar(diagnosisText, student.grade);
             if (data) {
                 setPiarData(data);
-                localStorage.removeItem(localStorageKey);
+                const newPiarDocument: Document = {
+                    id: `doc_piar_gen_${Date.now()}`,
+                    name: `PIAR_IA_${student.name.replace(/\s/g, '_')}.json`,
+                    type: 'PIAR',
+                    uploadDate: new Date().toISOString().split('T')[0],
+                    url: '#',
+                    content: data, // Store the generated data within the document
+                };
+                onDocumentAdd(newPiarDocument);
             } else {
                 setError("No se pudo generar el PIAR. La respuesta de la IA fue inválida.");
             }
@@ -68,7 +80,7 @@ const PiarGenerator: React.FC<PiarGeneratorProps> = ({ student, onDocumentAdd })
         } finally {
             setIsLoading(false);
         }
-    }, [diagnosisText, student.grade, localStorageKey]);
+    }, [diagnosisText, student.grade, student.name, onDocumentAdd]);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
@@ -89,9 +101,8 @@ const PiarGenerator: React.FC<PiarGeneratorProps> = ({ student, onDocumentAdd })
         const reader = new FileReader();
         reader.onload = async (e) => {
             const fileContent = e.target?.result as string;
-
             if (!fileContent) {
-                setAnalysisError("No se pudo leer el contenido del archivo. Asegúrese de que no esté vacío.");
+                setAnalysisError("No se pudo leer el contenido del archivo.");
                 setIsAnalyzing(false);
                 return;
             }
@@ -100,48 +111,152 @@ const PiarGenerator: React.FC<PiarGeneratorProps> = ({ student, onDocumentAdd })
                 const result = await analyzePiar(student.diagnosis, fileContent);
                 if (result) {
                     setAnalysisResult(result);
-                    const newDocument: Document = {
-                        id: `doc_${Date.now()}`,
+                    onDocumentAdd({
+                        id: `doc_analyzed_${Date.now()}`,
                         name: uploadedFile.name,
                         type: 'informe',
                         uploadDate: new Date().toISOString().split('T')[0],
-                        url: '#', // In a real app, this would be a URL to the stored file
-                    };
-                    onDocumentAdd(newDocument);
+                        url: '#',
+                    });
                     setAnalysisSuccess(true);
                 } else {
-                    setAnalysisError("No se pudo analizar el PIAR. La respuesta de la IA fue inválida.");
+                    setAnalysisError("No se pudo analizar el PIAR.");
                 }
             } catch (err) {
                 setAnalysisError("Ocurrió un error al contactar el servicio de IA.");
-                console.error(err);
             } finally {
                 setIsAnalyzing(false);
             }
         };
-        reader.onerror = () => {
-            setAnalysisError("Ocurrió un error al intentar leer el archivo.");
-            setIsAnalyzing(false);
-        };
-
-        // Note: This works best with .txt files. For PDF/DOCX, a server-side text extraction would be needed.
         reader.readAsText(uploadedFile);
     };
     
     const handleSaveChanges = () => {
         if (!piarData) return;
         setSaveStatus('saving');
-        try {
-            localStorage.setItem(localStorageKey, JSON.stringify(piarData));
-            setTimeout(() => {
-                setSaveStatus('saved');
-                setTimeout(() => setSaveStatus('idle'), 2000);
-            }, 500);
-        } catch (e) {
-            console.error("Failed to save PIAR data to localStorage", e);
-            setError("No se pudieron guardar los cambios.");
-            setSaveStatus('idle');
+        
+        const piarDocs = student.documents.filter(d => d.type === 'PIAR');
+        if (piarDocs.length > 0) {
+            const latestPiarDoc = piarDocs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime())[0];
+            const updatedDocuments = student.documents.map(doc => 
+                doc.id === latestPiarDoc.id ? { ...doc, content: piarData } : doc
+            );
+            onUpdateStudent({ ...student, documents: updatedDocuments });
+        } else {
+            onDocumentAdd({
+                id: `doc_piar_save_${Date.now()}`,
+                name: `PIAR_${student.name.replace(/\s/g, '_')}.json`,
+                type: 'PIAR',
+                uploadDate: new Date().toISOString().split('T')[0],
+                url: '#',
+                content: piarData
+            });
         }
+        
+        setTimeout(() => {
+            setSaveStatus('saved');
+            setTimeout(() => setSaveStatus('idle'), 2000);
+        }, 500);
+    };
+
+    const handleExportPdf = () => {
+        if (!piarData) return;
+    
+        const doc = new jsPDF();
+        const pageHeight = doc.internal.pageSize.height;
+        let y = 15;
+    
+        // Helper to add sections and manage page breaks
+        const addSection = (title: string, content: () => void) => {
+            if (y > pageHeight - 40) { // Check if space is enough for a new section
+                doc.addPage();
+                y = 15;
+            }
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(14);
+            doc.text(title, 14, y);
+            y += 8;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            content();
+            y += 10; // Space after section
+        };
+    
+        // Title
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Plan Individualizado de Ajustes Razonables (PIAR)`, 105, y, { align: 'center' });
+        y += 8;
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Estudiante: ${student.name}`, 105, y, { align: 'center' });
+        y += 15;
+    
+        // Resumen Diagnóstico
+        addSection('Resumen del Diagnóstico', () => {
+            const text = doc.splitTextToSize(piarData.resumen_diagnostico, 180);
+            doc.text(text, 14, y);
+            y += text.length * 5;
+        });
+    
+        // Fortalezas y Barreras (side by side)
+        addSection('Fortalezas y Barreras', () => {
+            (doc as any).autoTable({
+                startY: y,
+                head: [['Fortalezas', 'Barreras de Aprendizaje']],
+                body: [
+                    [
+                        piarData.fortalezas.map(f => `- ${f}`).join('\n'),
+                        piarData.barreras_aprendizaje.map(b => `- ${b}`).join('\n')
+                    ]
+                ],
+                theme: 'grid',
+                styles: { fontSize: 9, cellPadding: 2 },
+                headStyles: { fillColor: [22, 163, 74], textColor: 255 },
+            });
+            y = (doc as any).lastAutoTable.finalY;
+        });
+    
+        // Ajustes Razonables
+        addSection('Ajustes Razonables', () => {
+            (doc as any).autoTable({
+                startY: y,
+                head: [['Área/Materia', 'Ajustes Propuestos']],
+                body: piarData.ajustes_razonables.map(item => [
+                    item.area,
+                    item.ajustes.map(a => `- ${a}`).join('\n')
+                ]),
+                theme: 'striped',
+                styles: { fontSize: 9, cellPadding: 2 },
+                headStyles: { fillColor: [8, 145, 178] },
+            });
+             y = (doc as any).lastAutoTable.finalY;
+        });
+
+        // Actividades de Refuerzo
+        addSection('Actividades de Refuerzo', () => {
+            (doc as any).autoTable({
+                startY: y,
+                head: [['Área de Refuerzo', 'Actividades Sugeridas']],
+                body: piarData.actividades_refuerzo.map(item => [
+                    item.area,
+                    item.actividades.map(a => `- ${a}`).join('\n')
+                ]),
+                theme: 'striped',
+                styles: { fontSize: 9, cellPadding: 2 },
+                headStyles: { fillColor: [8, 145, 178] },
+            });
+             y = (doc as any).lastAutoTable.finalY;
+        });
+    
+        // Estrategias de Seguimiento
+        addSection('Estrategias de Seguimiento', () => {
+            const text = doc.splitTextToSize(piarData.estrategias_seguimiento.join('\n'), 180);
+            doc.text(text, 14, y);
+             y += text.length * 5;
+        });
+    
+        doc.save(`PIAR_${student.name.replace(/\s/g, '_')}.pdf`);
     };
     
     // Editable PIAR handlers
@@ -271,9 +386,9 @@ const PiarGenerator: React.FC<PiarGeneratorProps> = ({ student, onDocumentAdd })
                                 <SaveIcon className="w-4 h-4 mr-2" />
                                 {saveStatus === 'saved' ? '¡Guardado!' : 'Guardar Cambios'}
                             </button>
-                             <button className="inline-flex items-center px-3 py-1.5 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50">
+                             <button onClick={handleExportPdf} className="inline-flex items-center px-3 py-1.5 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50">
                                 <ExportIcon className="w-4 h-4 mr-2" />
-                                Exportar
+                                Exportar a PDF
                             </button>
                         </div>
                     </div>

@@ -1,6 +1,8 @@
+
+
 import React, { useState } from 'react';
-import type { NewStudentData } from '../types';
 import { XMarkIcon } from './icons/Icons';
+import type { NewStudentData } from '../types';
 
 const RegisterStudentModal = ({
     isOpen,

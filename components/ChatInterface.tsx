@@ -1,22 +1,94 @@
+
+
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import type { ChatMessage, AuthenticatedUser, Student } from '../types';
-import { getPedagogicalAgentResponse } from '../services/geminiService';
-import { PaperAirplaneIcon, SparklesIcon } from './icons/Icons';
+import { createPedagogicalAgentChatSession } from '../services/geminiService';
+import { PaperAirplaneIcon, SparklesIcon, Cog6ToothIcon } from './icons/Icons';
+import type { AuthenticatedUser, Student } from '../types';
+import type { Chat } from '@google/genai';
+
+
+interface ChatMessage {
+    id: string;
+    sender: 'user' | 'ia' | 'tool';
+    text: string;
+}
+
+const renderMarkdown = (text: string) => {
+    // Split text into paragraphs based on double newlines
+    const paragraphs = text.split(/\n\s*\n/);
+
+    return paragraphs.map((paragraph, pIndex) => {
+        // Handle headings
+        if (paragraph.startsWith('## ')) {
+            return <h4 key={pIndex} className="text-base font-bold mt-3 mb-1">{paragraph.substring(3)}</h4>;
+        }
+        if (paragraph.startsWith('# ')) {
+            return <h3 key={pIndex} className="text-lg font-bold mt-4 mb-2">{paragraph.substring(2)}</h3>;
+        }
+
+        // Handle lists
+        if (paragraph.match(/^[-*]\s/m)) {
+            const listItems = paragraph.split('\n').map((item, lIndex) => {
+                if (!item.trim().startsWith('- ') && !item.trim().startsWith('* ')) {
+                    return null; // Skip empty or non-list item lines
+                }
+                const itemContent = item.replace(/^[-*]\s*/, '');
+                const parts = itemContent.split(/(\*\*.*?\*\*)/g).filter(Boolean);
+                return (
+                    <li key={lIndex} className="mb-1">
+                        {parts.map((part, partIndex) => 
+                            part.startsWith('**') && part.endsWith('**')
+                                ? <strong key={partIndex}>{part.slice(2, -2)}</strong>
+                                : part
+                        )}
+                    </li>
+                );
+            }).filter(Boolean);
+            return <ul key={pIndex} className="list-disc list-inside space-y-1 my-2 pl-2">{listItems}</ul>;
+        }
+        
+        // Handle regular paragraphs with inline formatting
+        const parts = paragraph.split(/(\*\*.*?\*\*)/g).filter(Boolean);
+        return (
+            <p key={pIndex} className="my-1 leading-relaxed">
+                {parts.map((part, partIndex) => 
+                    part.startsWith('**') && part.endsWith('**')
+                        ? <strong key={partIndex}>{part.slice(2, -2)}</strong>
+                        : part
+                )}
+            </p>
+        );
+    });
+};
+
 
 interface ChatInterfaceProps {
     user: AuthenticatedUser;
     students: Student[];
+    onAddProgressEntry: (studentId: string, area: string, observation: string, author: string) => Promise<boolean>;
 }
 
 interface ChatBubbleProps {
     message: ChatMessage;
 }
 const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
+    if (message.sender === 'tool') {
+        return (
+            <div className="self-center flex items-center gap-2 text-sm text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg">
+                <Cog6ToothIcon className="w-5 h-5 animate-spin-slow"/>
+                <span>{message.text}</span>
+            </div>
+        );
+    }
+    
     const isUser = message.sender === 'user';
     const bubbleClasses = isUser ? 'bg-sky-600 text-white self-end' : 'bg-slate-200 text-slate-800 self-start';
     return (
         <div className={`max-w-xl p-3 rounded-xl shadow-sm ${bubbleClasses}`}>
-            <p className="text-sm leading-6 whitespace-pre-wrap">{message.text}</p>
+            <div className="text-sm leading-6">
+                 {isUser ? message.text : renderMarkdown(message.text)}
+            </div>
         </div>
     );
 };
@@ -35,16 +107,9 @@ const SuggestionChip: React.FC<SuggestionChipProps> = ({ text, onClick }) => (
 );
 
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, students }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, students, onAddProgressEntry }) => {
     const getWelcomeMessage = () => {
-        switch (user.role) {
-            case 'Docente':
-                return `¡Hola, ${user.name.split(' ')[0]}! Soy tu Agente Pedagógico Virtual. Puedo ayudarte a crear estrategias para tus estudiantes, resumir su progreso o redactar comunicaciones para las familias. ¿Cómo puedo asistirte?`;
-            case 'Familia':
-                 return `¡Hola, ${user.name}! Soy tu asistente virtual. Estoy aquí para resolver tus dudas sobre el PIAR, el progreso de tu hijo/a y darte ideas para apoyarlo/a en casa. ¿En qué te puedo ayudar?`;
-            default:
-                return `¡Hola! Soy el asistente de PIAR.360. Estoy aquí para ayudarte a navegar la plataforma o resolver dudas sobre los procesos de inclusión. ¿En qué puedo ayudarte hoy?`;
-        }
+        return `¡Hola, ${user.name.split(' ')[0]}! Soy tu Agente Pedagógico Virtual. Puedo ayudarte a crear estrategias, resumir progreso o **añadir observaciones a un estudiante**. ¿Cómo puedo asistirte?`;
     }
     
     const [messages, setMessages] = useState<ChatMessage[]>([
@@ -52,76 +117,99 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, students }) => {
             id: `msg_${Date.now()}`,
             sender: 'ia',
             text: getWelcomeMessage(),
-            timestamp: new Date().toISOString()
         }
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [showSuggestions, setShowSuggestions] = useState(true);
+    const chatRef = useRef<Chat | null>(null);
+
+    useEffect(() => {
+        if (user && students) {
+            chatRef.current = createPedagogicalAgentChatSession(user, students);
+        }
+    }, [user, students]);
 
     const suggestionPrompts = useMemo(() => {
         const studentName = students[0]?.name || 'un estudiante';
-        switch (user.role) {
-            case 'Docente':
-                return [
-                    `Sugerir 3 estrategias para ${studentName} en lectoescritura.`,
-                    `Resume el progreso reciente de ${studentName}.`,
-                    `Ayúdame a redactar un mensaje para la familia de ${studentName}.`
-                ];
-            case 'Familia':
-                return [
-                    `¿Qué actividades puedo hacer en casa para ayudar a ${studentName}?`,
-                    "Explícame en términos sencillos qué es un 'ajuste razonable'.",
-                    `¿Cómo va ${studentName} en sus habilidades sociales?`
-                ];
-            default: return [];
-        }
-    }, [user.role, students]);
+        const studentNameForPrompt = students[0] ? `para ${studentName}` : '';
+        return [
+            `Añade una observación ${studentNameForPrompt} sobre su interés en la lectura.`,
+            `Resume el progreso reciente de ${studentName}.`,
+            `Sugerir 3 estrategias ${studentNameForPrompt} en matemáticas.`
+        ];
+    }, [students]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
     useEffect(scrollToBottom, [messages]);
+    
+    const handleFunctionCall = async (functionCall: any) => {
+        const { name, args } = functionCall;
+        if (name === 'addStudentObservation') {
+            const { studentName, observation, area } = args;
+            const student = students.find(s => s.name.toLowerCase() === studentName.toLowerCase());
+            if (student) {
+                const success = await onAddProgressEntry(student.id, area, observation, user.name);
+                return { success, message: success ? `Observación añadida para ${studentName}.` : `No se pudo añadir la observación para ${studentName}.`};
+            } else {
+                return { success: false, message: `Estudiante "${studentName}" no encontrado en tu lista.` };
+            }
+        }
+        return { success: false, message: "Función desconocida." };
+    };
 
     const handleSend = async (messageText: string) => {
-        if (!messageText.trim() || isLoading) return;
+        if (!messageText.trim() || isLoading || !chatRef.current) return;
         setShowSuggestions(false);
 
         const userMessage: ChatMessage = {
             id: `msg_${Date.now()}`,
             sender: 'user',
             text: messageText,
-            timestamp: new Date().toISOString()
         };
-
-        // We use a functional update to ensure we have the latest messages state
         setMessages(prev => [...prev, userMessage]);
         setInput('');
         setIsLoading(true);
 
-        const geminiHistory = [...messages, userMessage].map(m => ({
-            role: m.sender === 'user' ? 'user' : 'model',
-            parts: [{ text: m.text }]
-        }));
-
         try {
-            const responseText = await getPedagogicalAgentResponse(geminiHistory, user, students);
-            const aiMessage: ChatMessage = {
-                id: `msg_${Date.now() + 1}`,
-                sender: 'ia',
-                text: responseText,
-                timestamp: new Date().toISOString()
-            };
-            setMessages(prev => [...prev, aiMessage]);
+            let response = await chatRef.current.sendMessage({ message: messageText });
+
+            while(true) {
+                 if (response.functionCalls && response.functionCalls.length > 0) {
+                    setMessages(prev => [...prev, { id: `tool_${Date.now()}`, sender: 'tool', text: `Usando herramienta: ${response.functionCalls[0].name}...` }]);
+                    
+                    const call = response.functionCalls[0];
+                    const result = await handleFunctionCall(call);
+
+                    response = await chatRef.current.sendMessage({
+                        toolResponse: {
+                            functionResponses: { id: call.id, name: call.name, response: result }
+                        }
+                    });
+                } else if (response.text) {
+                    const aiMessage: ChatMessage = {
+                        id: `msg_${Date.now() + 1}`,
+                        sender: 'ia',
+                        text: response.text,
+                    };
+                    setMessages(prev => [...prev, aiMessage]);
+                    break;
+                } else {
+                    // If no text and no function call, break to avoid infinite loop
+                    break;
+                }
+            }
+
         } catch (error) {
             console.error("Failed to get response from Gemini", error);
             const errorMessage: ChatMessage = {
                 id: `msg_err_${Date.now()}`,
                 sender: 'ia',
                 text: 'Lo siento, no pude procesar tu pregunta en este momento. Por favor, inténtalo de nuevo más tarde.',
-                timestamp: new Date().toISOString()
             };
             setMessages(prev => [...prev, errorMessage]);
         } finally {
@@ -144,7 +232,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, students }) => {
             <div className="flex-1 overflow-y-auto px-8 py-4 space-y-4 flex flex-col">
                 {messages.map(msg => <ChatBubble key={msg.id} message={msg} />)}
                 
-                {showSuggestions && suggestionPrompts.length > 0 && (
+                {showSuggestions && suggestionPrompts.length > 0 && students.length > 0 && (
                      <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm animate-fade-in">
                         <p className="text-sm font-semibold text-slate-700 mb-3">Aquí tienes algunas ideas para empezar:</p>
                         <div className="flex flex-wrap gap-2">

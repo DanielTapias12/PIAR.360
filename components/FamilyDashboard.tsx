@@ -1,12 +1,12 @@
 
-
 import React, { useState } from 'react';
-import type { Student, Document, ProgressEntry } from '../types';
 import { ArrowLeftIcon, DocumentIcon, ChartBarIcon, WandIcon } from './icons/Icons';
 import PiarSummaryForFamily from './PiarSummaryForFamily';
 import FamilyAIAssistant from './FamilyAIAssistant';
+import type { Student, AuthenticatedUser } from '../types';
 
 interface FamilyDashboardProps {
+    user: AuthenticatedUser;
     student: Student;
     onBack: () => void;
     onUpdateStudent: (student: Student) => void;
@@ -29,13 +29,12 @@ const TabButton = ({ label, icon, isActive, onClick }: { label: string, icon: Re
     );
 };
 
-const FamilyDashboard: React.FC<FamilyDashboardProps> = ({ student, onBack }) => {
+const FamilyDashboard: React.FC<FamilyDashboardProps> = ({ user, student, onBack }) => {
     const [activeTab, setActiveTab] = useState<FamilyTab>('summary');
 
     return (
         <div className="p-8">
             <header className="flex items-center mb-6">
-                 {/* FIX: Changed photoUrl to photo_url to match the Student type. */}
                  <img src={student.photo_url} alt={student.name} className="w-16 h-16 rounded-full" />
                 <div className="ml-4">
                     <h1 className="text-3xl font-bold text-slate-800">Portal Familiar</h1>
@@ -51,7 +50,7 @@ const FamilyDashboard: React.FC<FamilyDashboardProps> = ({ student, onBack }) =>
                     </nav>
                 </div>
                 <div>
-                    {activeTab === 'summary' && <PiarSummaryForFamily student={student} />}
+                    {activeTab === 'summary' && <PiarSummaryForFamily student={student} user={user} />}
                     {activeTab === 'assistant' && <FamilyAIAssistant student={student} />}
                 </div>
             </div>

@@ -1,57 +1,6 @@
+
+
 export type UserRole = 'Docente' | 'Familia' | 'Director';
-
-export interface AuthenticatedUser {
-    id: string; 
-    username: string;
-    name: string;
-    role: UserRole;
-    student_id?: string;
-    email: string;
-    
-    // Optional fields not in DB but can be on the object
-    age?: string;
-    address?: string;
-    phone?: string;
-    specialization?: string; // For Docente
-    specificPosition?: string; // For Director
-    experience?: string;     // For Docente
-    relationship?: string;   // For Familia
-}
-
-export interface Student {
-    id: string;
-    name: string;
-    photo_url: string;
-    grade: string;
-    risk_level: 'bajo' | 'medio' | 'alto';
-    diagnosis: string;
-    teacher?: string; // Optional for family view
-    documents: Document[];
-    progress_entries: ProgressEntry[];
-}
-
-export interface NewStudentData {
-    name: string;
-    grade: string;
-    risk_level: 'bajo' | 'medio' | 'alto';
-    diagnosis: string;
-}
-
-export interface Document {
-    id: string;
-    name: string;
-    type: 'informe' | 'evaluacion' | 'PIAR';
-    uploadDate: string;
-    url: string;
-}
-
-export interface Alert {
-    id: string;
-    studentId: string;
-    studentName: string;
-    message: string;
-    timestamp: string;
-}
 
 export interface PiarData {
     resumen_diagnostico: string;
@@ -68,6 +17,15 @@ export interface PiarData {
     estrategias_seguimiento: string[];
 }
 
+export interface Document {
+    id: string;
+    name: string;
+    type: 'informe' | 'evaluacion' | 'PIAR';
+    uploadDate: string;
+    url: string;
+    content?: PiarData;
+}
+
 export interface ProgressEntry {
     id: string;
     date: string;
@@ -80,12 +38,40 @@ export interface ProgressEntry {
     };
 }
 
-export interface Notification {
+export interface AuthenticatedUser {
     id: string;
-    title: string;
-    message: string;
-    timestamp: string;
-    read: boolean;
+    username: string;
+    name: string;
+    role: UserRole;
+    student_id?: string;
+    email: string;
+    photo_url?: string;
+    age?: string;
+    address?: string;
+    phone?: string;
+    specialization?: string;
+    specificPosition?: string;
+    experience?: string;
+    relationship?: string;
+}
+
+export interface Student {
+    id: string;
+    name: string;
+    photo_url: string;
+    grade: string;
+    risk_level: 'bajo' | 'medio' | 'alto';
+    diagnosis: string;
+    teachers: string[];
+    documents: Document[];
+    progress_entries: ProgressEntry[];
+}
+
+export interface NewStudentData {
+    name: string;
+    grade: string;
+    risk_level: 'bajo' | 'medio' | 'alto';
+    diagnosis: string;
 }
 
 export interface Strategy {
@@ -95,16 +81,10 @@ export interface Strategy {
     grades: string[];
 }
 
-export interface FamilyMessage {
+export interface Notification {
     id: string;
-    sender: 'user' | 'ia';
-    text: string;
+    title: string;
+    message: string;
     timestamp: string;
-}
-
-export interface ChatMessage {
-    id: string;
-    sender: 'user' | 'ia';
-    text: string;
-    timestamp: string;
+    read: boolean;
 }

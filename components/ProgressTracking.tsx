@@ -1,6 +1,8 @@
+
+
 import React, { useState } from 'react';
-import type { Student, ProgressEntry } from '../types';
 import { PlusIcon, AcademicCapIcon } from './icons/Icons';
+import type { Student, ProgressEntry } from '../types';
 
 interface ProgressTrackingProps {
     student: Student;

@@ -1,7 +1,9 @@
+
+
 import React, { useState } from 'react';
 import { getInclusiveStrategies } from '../services/geminiService';
-import type { Student, Strategy } from '../types';
 import { SearchIcon, LightbulbIcon, XMarkIcon, AcademicCapIcon, CheckCircleIcon, ChevronDownIcon } from './icons/Icons';
+import type { Student, Strategy } from '../types';
 
 const LoadingSpinner = () => (
     <div className="flex justify-center items-center p-8">

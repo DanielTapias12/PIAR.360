@@ -1,9 +1,17 @@
 
 
 import React, { useState, useRef, useEffect } from 'react';
-import type { Student, FamilyMessage } from '../types';
 import { getFamilyAssistantResponse } from '../services/geminiService';
 import { PaperAirplaneIcon, SparklesIcon } from './icons/Icons';
+import type { Student } from '../types';
+
+interface FamilyMessage {
+    id: string;
+    sender: 'user' | 'ia';
+    text: string;
+    timestamp: string;
+}
+
 
 interface FamilyAIAssistantProps {
     student: Student;
@@ -50,7 +58,6 @@ const FamilyAIAssistant: React.FC<FamilyAIAssistantProps> = ({ student }) => {
             id: `msg_${Date.now()}`,
             sender: 'user',
             text: input,
-            // FIX: Corrected typo `new new Date()` to `new Date()`.
             timestamp: new Date().toISOString()
         };
 

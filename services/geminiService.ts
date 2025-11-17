@@ -1,10 +1,11 @@
 
-import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import type { PiarData, Student, AuthenticatedUser, Strategy } from "../types";
+
+import { GoogleGenAI, Type, GenerateContentResponse, FunctionDeclaration, Chat } from "@google/genai";
+import type { PiarData, Strategy, Student, AuthenticatedUser } from '../types';
 
 // Per guidelines, initialize with a named apiKey object.
 // The API key MUST be obtained exclusively from process.env.API_KEY.
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const piarSchema = {
     type: Type.OBJECT,
@@ -188,23 +189,38 @@ export const getFamilyAssistantResponse = async (student: Student, messageHistor
     }
 };
 
-export const getPedagogicalAgentResponse = async (
-    messageHistory: {role: string, parts: {text: string}[]}[],
-    user: AuthenticatedUser,
-    students: Student[]
-): Promise<string> => {
-    
+// --- Pedagogical Agent with Function Calling ---
+
+const addStudentObservationFunction: FunctionDeclaration = {
+    name: 'addStudentObservation',
+    description: "Añade una nueva observación o registro de progreso para un estudiante específico.",
+    parameters: {
+        type: Type.OBJECT,
+        properties: {
+            studentName: {
+                type: Type.STRING,
+                description: "El nombre completo del estudiante al que se le añadirá la observación."
+            },
+            observation: {
+                type: Type.STRING,
+                description: "El texto de la observación o el registro de progreso."
+            },
+            area: {
+                type: Type.STRING,
+                description: "El área de desarrollo o académica a la que corresponde la observación (ej. 'Habilidades Sociales', 'Lectoescritura')."
+            }
+        },
+        required: ['studentName', 'observation', 'area']
+    }
+};
+
+export const createPedagogicalAgentChatSession = (user: AuthenticatedUser, students: Student[]): Chat => {
     // Create a concise summary of students for context
     const studentContext = students.map(s => ({
         id: s.id,
         name: s.name,
         grade: s.grade,
         diagnosis: s.diagnosis,
-        // FIX: Changed riskLevel to risk_level to match the Student type.
-        risk: s.risk_level,
-        teacher: s.teacher,
-        // FIX: Changed progressEntries to progress_entries to match the Student type.
-        progress: s.progress_entries.slice(0, 2).map(p => `${p.date}: ${p.observation}`).join('; ') || 'No hay registros recientes.'
     }));
 
     const systemInstruction = `
@@ -213,41 +229,41 @@ export const getPedagogicalAgentResponse = async (
         
         **Tus capacidades son:**
         1.  **Sugerir Estrategias:** Ofrecer estrategias pedagógicas, de evaluación y de comunicación personalizadas para los estudiantes.
-        2.  **Resumir Información:** Sintetizar el progreso, las alertas y los datos clave de uno o varios estudiantes.
-        3.  **Facilitar la Comunicación:** Ayudar a redactar mensajes claros, empáticos y profesionales entre docentes y familias.
-        4.  **Resolver Dudas:** Contestar preguntas sobre la plataforma PIAR.360 y conceptos de educación inclusiva.
+        2.  **Resumir Información:** Sintetizar el progreso y los datos clave de uno o varios estudiantes.
+        3.  **Añadir Observaciones:** Puedes registrar el progreso de un estudiante. Para ello, DEBES usar la herramienta 'addStudentObservation'. Pide al usuario el área de la observación si no la proporciona.
+        4.  **Facilitar la Comunicación:** Ayudar a redactar mensajes claros y empáticos entre docentes y familias.
 
         **Contexto Actual:**
         - Rol del Usuario: ${user.role}
         - Nombre del Usuario: ${user.name}
         - Estudiantes a cargo/visibles: ${JSON.stringify(studentContext, null, 2)}
 
+        **Formato de Respuesta:**
+        - Utiliza **negritas** para resaltar conceptos clave, nombres de estudiantes o acciones importantes.
+        - Usa listas con guiones (-) para enumerar estrategias, puntos o pasos a seguir. Esto es crucial para la claridad.
+        - Usa encabezados simples (ej. ## Título) para estructurar respuestas que tengan múltiples secciones.
+
+        **Ejemplo de formato ideal:**
+        ## Estrategias para un Estudiante
+        Basado en su progreso, aquí tienes algunas sugerencias:
+        - **Fomentar la lectura en voz alta:** Dedicar 5 minutos diarios a esta actividad puede mejorar su fluidez.
+        - **Utilizar material visual:** Apoyar las explicaciones matemáticas con gráficos o dibujos.
+
         **Reglas Importantes:**
+        - Si el usuario quiere añadir una observación, usa la función 'addStudentObservation'. No respondas simplemente con texto.
         - Basa tus respuestas en el contexto proporcionado.
         - Si te piden información sobre un estudiante no listado, indica que no tienes acceso a sus datos.
-        - **NUNCA** inventes información, diagnósticos o registros de progreso. Si no tienes datos, dilo explícitamente.
+        - **NUNCA** inventes información. Si no tienes datos, dilo explícitamente.
         - **NO** ofrezcas consejos médicos. Siempre redirige esas consultas a profesionales de la salud.
-        - Sé siempre profesional, empático y constructivo. Formatea tus respuestas con Markdown para mayor claridad.
+        - Sé siempre profesional, empático y constructivo.
     `;
-
-    try {
-        const chat = ai.chats.create({
-             // Using a more powerful model for complex reasoning
-             model: 'gemini-2.5-pro',
-             history: messageHistory.slice(0, -1),
-             config: {
-                systemInstruction: systemInstruction,
-                temperature: 0.7,
-             }
-        });
-
-        const lastMessage = messageHistory[messageHistory.length - 1];
-        const response = await chat.sendMessage({message: lastMessage.parts[0].text});
-
-        return response.text;
-
-    } catch (error) {
-        console.error("Error in Pedagogical Agent:", error);
-        throw new Error("Failed to get response from AI agent.");
-    }
+    
+    return ai.chats.create({
+        model: 'gemini-2.5-pro', // A powerful model is needed for reliable function calling
+        config: {
+            systemInstruction: systemInstruction,
+            temperature: 0.7,
+            tools: [{ functionDeclarations: [addStudentObservationFunction] }]
+        }
+    });
 };

@@ -1,6 +1,8 @@
+
+
 import React, { useState, useMemo } from 'react';
+import { UserGroupIcon, XMarkIcon, UserPlusIcon, UserMinusIcon } from './icons/Icons';
 import type { AuthenticatedUser, Student } from '../types';
-import { UserGroupIcon, XMarkIcon, UserPlusIcon, UserMinusIcon, CheckCircleIcon } from './icons/Icons';
 
 interface AssignStudentModalProps {
     isOpen: boolean;
@@ -122,18 +124,21 @@ const FamilyManagement: React.FC<FamilyManagementProps> = ({ allUsers, allStuden
                     assignableStudents={assignableStudents}
                 />
             )}
-            <header className="mb-6">
-                <h1 className="text-3xl font-bold text-slate-800">Gestión de Familias</h1>
-                <p className="text-slate-500 mt-1">Asigna estudiantes a las cuentas de sus familias o acudientes.</p>
+            <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-slate-800">Gestión de Familias</h1>
+                    <p className="text-slate-500 mt-1">Asigna estudiantes a las cuentas de sus familias o acudientes.</p>
+                </div>
             </header>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {families.map(family => {
-                    const assignedStudent = family.student_id ? studentsById[family.student_id] : null;
-                    return (
-                        <div key={family.username} className="bg-white rounded-xl shadow-md p-4 flex flex-col justify-between hover:shadow-lg transition-shadow duration-300">
-                            <div>
-                                <div className="flex items-center space-x-3">
-                                    <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center">
+
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-slate-200">
+                <ul className="divide-y divide-slate-200">
+                    {families.map(family => {
+                        const assignedStudent = family.student_id ? studentsById[family.student_id] : null;
+                        return (
+                            <li key={family.id} className="p-4 flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 hover:bg-slate-50 transition-colors">
+                                <div className="flex items-center gap-4 flex-shrink-0">
+                                    <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
                                         <UserGroupIcon className="w-6 h-6 text-slate-500" />
                                     </div>
                                     <div>
@@ -141,10 +146,10 @@ const FamilyManagement: React.FC<FamilyManagementProps> = ({ allUsers, allStuden
                                         <p className="text-sm text-slate-500">{family.email}</p>
                                     </div>
                                 </div>
-                                <div className="mt-4 pt-4 border-t border-slate-100">
-                                    <h4 className="text-xs font-semibold text-slate-500 uppercase">Estudiante Asignado</h4>
+
+                                <div className="flex-grow w-full sm:w-auto sm:min-w-[250px]">
                                     {assignedStudent ? (
-                                        <div className="flex items-center space-x-3 mt-2">
+                                        <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-lg border border-slate-200">
                                             <img src={assignedStudent.photo_url} alt={assignedStudent.name} className="w-10 h-10 rounded-full"/>
                                             <div>
                                                 <p className="font-medium text-sm text-slate-700">{assignedStudent.name}</p>
@@ -152,34 +157,35 @@ const FamilyManagement: React.FC<FamilyManagementProps> = ({ allUsers, allStuden
                                             </div>
                                         </div>
                                     ) : (
-                                        <p className="mt-2 text-sm text-slate-500 italic">Sin asignar</p>
+                                        <div className="text-sm text-slate-500 italic p-2 h-[58px] flex items-center">Sin asignar</div>
                                     )}
                                 </div>
-                            </div>
-                            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
-                                <button
-                                    onClick={() => handleOpenModal(family)}
-                                    disabled={!!assignedStudent}
-                                    className="w-full flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-sky-500 hover:bg-sky-600 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
-                                >
-                                    <UserPlusIcon className="w-4 h-4 mr-2" />
-                                    Asignar
-                                </button>
-                                <button
-                                    onClick={() => onUnassignStudentFromFamily(family.username)}
-                                    disabled={!assignedStudent}
-                                    className="w-full flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
-                                >
-                                    <UserMinusIcon className="w-4 h-4 mr-2" />
-                                    Quitar
-                                </button>
-                            </div>
-                        </div>
-                    );
-                })}
+
+                                <div className="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
+                                    <button
+                                        onClick={() => handleOpenModal(family)}
+                                        disabled={!!assignedStudent}
+                                        className="w-full sm:w-auto flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-sky-500 hover:bg-sky-600 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        <UserPlusIcon className="w-4 h-4 mr-2" />
+                                        Asignar
+                                    </button>
+                                    <button
+                                        onClick={() => onUnassignStudentFromFamily(family.username)}
+                                        disabled={!assignedStudent}
+                                        className="w-full sm:w-auto flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        <UserMinusIcon className="w-4 h-4 mr-2" />
+                                        Quitar
+                                    </button>
+                                </div>
+                            </li>
+                        );
+                    })}
+                </ul>
             </div>
             {families.length === 0 && (
-                 <div className="col-span-full text-center py-16 bg-white rounded-xl shadow-sm">
+                 <div className="text-center py-16 bg-white rounded-xl shadow-sm border border-slate-200">
                     <p className="text-slate-500">No hay familias/acudientes registrados en el sistema.</p>
                 </div>
             )}

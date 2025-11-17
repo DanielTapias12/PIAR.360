@@ -182,7 +182,16 @@ export const AcademicCapIcon: React.FC<IconProps> = (props) => (
 
 export const Cog6ToothIcon: React.FC<IconProps> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-1.003 1.11-1.226l.05-.022c.557-.233 1.18-.233 1.737 0l.05.022c.548.223 1.02.684 1.11 1.226l.064.385a1.82 1.82 0 01-1.33 2.149l-.02.006a1.82 1.82 0 01-2.149-1.33l-.064-.385zM21.75 12a9.75 9.75 0 11-19.5 0 9.75 9.75 0 0119.5 0zM12.75 5.106a.75.75 0 01.75.75v12a.75.75 0 01-.75.75h-1.5a.75.75 0 01-.75-.75v-12a.75.75 0 01.75-.75h1.5z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.343 3.94c.09-.542.56-1.003 1.11-1.226l.05-.022c.557-.233 1.18-.233 1.737 0l.05.022c.548.223 1.02.684 1.11 1.226l.064.385a1.82 1.82 0 01-1.33 2.149l-.02.006a1.82 1.82 0 01-2.149-1.33l-.064-.385z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+    </svg>
+);
+
+export const CameraIcon: React.FC<IconProps> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.776 48.776 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
     </svg>
 );
 
