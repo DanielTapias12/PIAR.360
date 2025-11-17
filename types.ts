@@ -44,7 +44,7 @@ export interface AuthenticatedUser {
     name: string;
     role: UserRole;
     student_id?: string;
-    email: string;
+    email?: string;
     photo_url?: string;
     age?: string;
     address?: string;
@@ -58,6 +58,7 @@ export interface AuthenticatedUser {
 export interface Student {
     id: string;
     name: string;
+    age: number;
     photo_url: string;
     grade: string;
     risk_level: 'bajo' | 'medio' | 'alto';
@@ -69,6 +70,7 @@ export interface Student {
 
 export interface NewStudentData {
     name: string;
+    age: number;
     grade: string;
     risk_level: 'bajo' | 'medio' | 'alto';
     diagnosis: string;

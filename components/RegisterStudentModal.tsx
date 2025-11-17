@@ -14,6 +14,7 @@ const RegisterStudentModal = ({
     onSubmit: (data: NewStudentData) => void;
 }) => {
     const [name, setName] = useState('');
+    const [age, setAge] = useState<number | ''>('');
     const [grade, setGrade] = useState('Tercero');
     const [riskLevel, setRiskLevel] = useState<'bajo' | 'medio' | 'alto'>('bajo');
     const [diagnosis, setDiagnosis] = useState('');
@@ -24,13 +25,14 @@ const RegisterStudentModal = ({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        if (!name.trim() || !diagnosis.trim()) {
+        if (!name.trim() || !diagnosis.trim() || age === '') {
             setError('Todos los campos son obligatorios.');
             return;
         }
-        onSubmit({ name, grade, risk_level: riskLevel, diagnosis });
+        onSubmit({ name, age: Number(age), grade, risk_level: riskLevel, diagnosis });
         // Reset form for next time, parent will handle closing
         setName('');
+        setAge('');
         setGrade('Tercero');
         setRiskLevel('bajo');
         setDiagnosis('');
@@ -53,7 +55,11 @@ const RegisterStudentModal = ({
                         <label htmlFor="student-name" className="block text-sm font-medium text-slate-700">Nombre Completo</label>
                         <input id="student-name" type="text" value={name} onChange={e => setName(e.target.value)} required className="mt-1 block w-full px-3 py-2 bg-slate-100 border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 sm:text-sm" />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                         <div>
+                            <label htmlFor="student-age" className="block text-sm font-medium text-slate-700">Edad</label>
+                            <input id="student-age" type="number" value={age} onChange={e => setAge(parseInt(e.target.value, 10) || '')} required className="mt-1 block w-full px-3 py-2 bg-slate-100 border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 sm:text-sm" />
+                        </div>
                          <div>
                             <label htmlFor="student-grade" className="block text-sm font-medium text-slate-700">Grado</label>
                              <select id="student-grade" value={grade} onChange={e => setGrade(e.target.value)} className="mt-1 block w-full px-3 py-2 border-transparent bg-slate-100 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 sm:text-sm">

@@ -152,7 +152,11 @@ const StudentProfile: React.FC<StudentProfileProps> = ({ student, onBack, onUpda
 
     const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        setEditableStudent(prev => ({ ...prev, [name]: value }));
+        if (name === 'age') {
+            setEditableStudent(prev => ({ ...prev, age: parseInt(value, 10) || 0 }));
+        } else {
+            setEditableStudent(prev => ({ ...prev, [name]: value }));
+        }
     };
 
     const handleSaveChanges = () => {
@@ -168,7 +172,11 @@ const StudentProfile: React.FC<StudentProfileProps> = ({ student, onBack, onUpda
                         <label htmlFor="name" className="block text-sm font-medium text-slate-700">Nombre Completo</label>
                         <input type="text" id="name" name="name" value={editableStudent.name} onChange={handleEditChange} className="mt-1 input-field" />
                     </div>
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                         <div>
+                            <label htmlFor="age" className="block text-sm font-medium text-slate-700">Edad</label>
+                            <input type="number" id="age" name="age" value={editableStudent.age || ''} onChange={handleEditChange} className="mt-1 input-field" />
+                        </div>
                          <div>
                             <label htmlFor="grade" className="block text-sm font-medium text-slate-700">Grado</label>
                             <input type="text" id="grade" name="grade" value={editableStudent.grade} onChange={handleEditChange} className="mt-1 input-field" />
@@ -205,6 +213,7 @@ const StudentProfile: React.FC<StudentProfileProps> = ({ student, onBack, onUpda
                 </div>
                 <div className="mt-4 space-y-3 text-sm text-slate-700">
                     <p><span className="font-semibold w-24 inline-block">Nombre:</span> {student.name}</p>
+                    <p><span className="font-semibold w-24 inline-block">Edad:</span> {student.age} años</p>
                     <p><span className="font-semibold w-24 inline-block">Grado:</span> {student.grade}</p>
                     <p><span className="font-semibold w-24 inline-block">Docentes:</span> {student.teachers && student.teachers.length > 0 ? student.teachers.join(', ') : 'Sin Asignar'}</p>
                     <div>

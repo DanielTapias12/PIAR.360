@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { ArrowLeftIcon, DocumentIcon, ChartBarIcon, WandIcon } from './icons/Icons';
 import PiarSummaryForFamily from './PiarSummaryForFamily';
@@ -9,7 +10,7 @@ interface FamilyDashboardProps {
     user: AuthenticatedUser;
     student: Student;
     onBack: () => void;
-    onUpdateStudent: (student: Student) => void;
+    onNavigate: (view: string) => void;
 }
 
 type FamilyTab = 'summary' | 'assistant';
@@ -29,7 +30,7 @@ const TabButton = ({ label, icon, isActive, onClick }: { label: string, icon: Re
     );
 };
 
-const FamilyDashboard: React.FC<FamilyDashboardProps> = ({ user, student, onBack }) => {
+const FamilyDashboard: React.FC<FamilyDashboardProps> = ({ user, student, onBack, onNavigate }) => {
     const [activeTab, setActiveTab] = useState<FamilyTab>('summary');
 
     return (
@@ -50,7 +51,7 @@ const FamilyDashboard: React.FC<FamilyDashboardProps> = ({ user, student, onBack
                     </nav>
                 </div>
                 <div>
-                    {activeTab === 'summary' && <PiarSummaryForFamily student={student} user={user} />}
+                    {activeTab === 'summary' && <PiarSummaryForFamily student={student} user={user} onNavigate={onNavigate} />}
                     {activeTab === 'assistant' && <FamilyAIAssistant student={student} />}
                 </div>
             </div>

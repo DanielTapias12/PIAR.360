@@ -5,7 +5,7 @@ import type { PiarData, Strategy, Student, AuthenticatedUser } from '../types';
 
 // Per guidelines, initialize with a named apiKey object.
 // The API key MUST be obtained exclusively from process.env.API_KEY.
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const piarSchema = {
     type: Type.OBJECT,
@@ -42,9 +42,9 @@ const piarSchema = {
     required: ['resumen_diagnostico', 'barreras_aprendizaje', 'fortalezas', 'ajustes_razonables', 'actividades_refuerzo', 'estrategias_seguimiento']
 };
 
-export const generatePiar = async (diagnosis: string, grade: string): Promise<PiarData | null> => {
+export const generatePiar = async (diagnosis: string, grade: string, age: number): Promise<PiarData | null> => {
     const prompt = `
-        Basado en el Decreto 1421 de 2017 de Colombia, genera una propuesta de Plan Individualizado de Ajustes Razonables (PIAR) para un estudiante de ${grade}.
+        Basado en el Decreto 1421 de 2017 de Colombia, genera una propuesta de Plan Individualizado de Ajustes Razonables (PIAR) para un estudiante de ${grade} que tiene ${age} años.
         Diagnóstico y contexto proporcionado: "${diagnosis}".
         La respuesta DEBE ser un objeto JSON que siga el esquema proporcionado. No incluyas "json" ni \`\`\` en la respuesta.
     `;

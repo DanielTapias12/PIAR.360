@@ -1,7 +1,7 @@
 
 
 import React, { useState, useMemo } from 'react';
-import { SearchIcon, UserPlusIcon, XMarkIcon, CheckCircleIcon, UserMinusIcon } from './icons/Icons';
+import { SearchIcon, UserPlusIcon, XMarkIcon, CheckCircleIcon, UserMinusIcon, UserCircleIcon } from './icons/Icons';
 import type { AuthenticatedUser, Student } from '../types';
 
 interface StudentCardProps {
@@ -29,7 +29,10 @@ const StudentCard: React.FC<StudentCardProps> = ({ student, onSelect, user, onAs
             >
                 <img src={student.photo_url} alt={student.name} className="w-16 h-16 rounded-full" />
                 <div className="flex-1">
-                    <p className="font-semibold text-slate-800">{student.name}</p>
+                    <p className="font-semibold text-slate-800 flex items-center gap-2">
+                        <UserCircleIcon className="w-5 h-5 text-slate-400" />
+                        {student.name}
+                    </p>
                     <p className="text-sm text-slate-500">{student.grade}</p>
                 </div>
                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${riskColorMap[student.risk_level]}`}>

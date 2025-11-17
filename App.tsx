@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -13,6 +14,8 @@ import ProfileSettings from './components/ProfileSettings';
 import RegisterStudentModal from './components/RegisterStudentModal';
 import AssignToFamilyModal from './components/AssignToFamilyModal';
 import Auth from './components/Auth';
+import TeacherProfile from './components/TeacherProfile';
+import FamilyProfile from './components/FamilyProfile';
 import { supabase } from './services/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 import type { Student, AuthenticatedUser, Notification, NewStudentData, Strategy, Document, ProgressEntry } from './types';
@@ -20,6 +23,8 @@ import type { Student, AuthenticatedUser, Notification, NewStudentData, Strategy
 const App: React.FC = () => {
     const [session, setSession] = useState<Session | null>(null);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+    const [selectedTeacher, setSelectedTeacher] = useState<AuthenticatedUser | null>(null);
+    const [selectedFamily, setSelectedFamily] = useState<AuthenticatedUser | null>(null);
     const [view, setView] = useState<any>('dashboard');
     
     const [students, setStudents] = useState<Student[]>([]);
@@ -161,16 +166,26 @@ const App: React.FC = () => {
     const handleSelectStudent = (student: Student) => {
         setSelectedStudent(student);
     };
+    
+    const handleSelectTeacher = (teacher: AuthenticatedUser) => {
+        setSelectedTeacher(teacher);
+    };
+    
+    const handleSelectFamily = (family: AuthenticatedUser) => {
+        setSelectedFamily(family);
+    };
 
     const handleBack = () => {
         setSelectedStudent(null);
-        setView('students'); // Return to the list view by default
+        setSelectedTeacher(null);
+        setSelectedFamily(null);
+        setView('dashboard');
     };
     
     const handleNavigation = (targetView: string) => {
-        // Always clear the student selection when using main navigation
-        // to prevent being "stuck" in a student profile.
         setSelectedStudent(null);
+        setSelectedTeacher(null);
+        setSelectedFamily(null);
         setView(targetView);
     };
 
@@ -316,16 +331,52 @@ const App: React.FC = () => {
     };
 
     const handleAssignStudentToFamily = async (familyUsername: string, studentId: string) => {
-        const { error: unassignError } = await supabase.from('users').update({ student_id: null }).eq('student_id', studentId);
-        if (unassignError) { console.error('Unassign error:', unassignError); return; }
+        const familyUser = users.find(u => u.username === familyUsername);
+        if (!familyUser) {
+            addNotification('Error de Asignación', `No se encontró la familia con el usuario "${familyUsername}".`);
+            return;
+        }
 
-        const { error: assignError } = await supabase.from('users').update({ student_id: studentId }).eq('username', familyUsername);
-        if (assignError) { console.error('Assign error:', assignError); return; }
+        // --- Start of Robust Re-assignment Logic ---
+        const previousFamily = users.find(u => u.student_id === studentId && u.id !== familyUser.id);
+
+        // 1. Try to assign to the new family first.
+        const { error: assignError } = await supabase
+            .from('users')
+            .update({ student_id: studentId })
+            .eq('id', familyUser.id);
+
+        if (assignError) {
+            console.error('Assign error:', assignError);
+            addNotification('Error de Asignación', `No se pudo asignar el estudiante. Detalle: ${assignError.message}`);
+            return; // Stop if the primary operation fails
+        }
         
-        // Refresh users from DB to get the latest state
+        addNotification('Asignación Exitosa', `Estudiante asignado a ${familyUser.name}.`);
+
+        // 2. If assignment was successful AND there was a previous family, unassign from them.
+        if (previousFamily) {
+            const { error: unassignError } = await supabase
+                .from('users')
+                .update({ student_id: null })
+                .eq('id', previousFamily.id);
+            
+            if (unassignError) {
+                console.error('Unassign error after re-assignment:', unassignError);
+                addNotification('Asignación Parcial', `El estudiante fue asignado, pero no se pudo desasignar de ${previousFamily.name}. Error: ${unassignError.message}`);
+            } else {
+                addNotification('Desasignación Exitosa', `Se quitó la asignación de la familia anterior (${previousFamily.name}).`);
+            }
+        }
+        // --- End of Robust Re-assignment Logic ---
+
+        // 3. Refresh user list to reflect changes.
         const { data: refreshedUsers, error: fetchError } = await supabase.from('users').select('*');
         if (refreshedUsers) {
             setUsers(refreshedUsers as AuthenticatedUser[]);
+        } else if (fetchError) {
+            console.error("Fetch users after assignment failed:", fetchError);
+            addNotification('Error de Sincronización', 'No se pudo refrescar la lista de usuarios.');
         }
     };
     
@@ -333,20 +384,35 @@ const App: React.FC = () => {
         await handleAssignStudentToFamily(familyUsername, studentId);
         setShowAssignToFamilyModal(false);
         setNewlyRegisteredStudent(null);
-        const family = users.find(u => u.username === familyUsername);
-        const student = students.find(s => s.id === studentId);
-        if (family && student) {
-            addNotification('Asignación Exitosa', `Estudiante ${student.name} asignado a ${family.name}.`);
-        }
     };
 
     const handleUnassignStudentFromFamily = async (familyUsername: string) => {
-        const { error } = await supabase.from('users').update({ student_id: null }).eq('username', familyUsername);
-        if (error) { console.error("Unassign error:", error); return; }
+        const familyUser = users.find(u => u.username === familyUsername);
+        if (!familyUser) {
+            addNotification('Error de Desasignación', `No se encontró la familia con el usuario "${familyUsername}".`);
+            return;
+        }
 
-        setUsers(prevUsers => prevUsers.map(user => 
-            user.username === familyUsername ? { ...user, student_id: undefined } : user
-        ));
+        const { error } = await supabase
+            .from('users')
+            .update({ student_id: null })
+            .eq('id', familyUser.id);
+
+        if (error) {
+            console.error("Unassign error:", error);
+            addNotification('Error de Desasignación', `No se pudo quitar la asignación. Detalle: ${error.message}`);
+            return;
+        }
+        
+        addNotification('Desasignación Exitosa', `Se quitó el estudiante de la familia ${familyUser.name}.`);
+    
+        const { data: refreshedUsers, error: fetchError } = await supabase.from('users').select('*');
+        if (refreshedUsers) {
+            setUsers(refreshedUsers as AuthenticatedUser[]);
+        } else if (fetchError) {
+            console.error("Fetch users after unassignment failed:", fetchError);
+            addNotification('Error de Sincronización', 'No se pudo refrescar la lista de usuarios.');
+        }
     };
 
     const handleUpdateUserProfile = async (updatedProfileData: Partial<AuthenticatedUser>, newAvatarFile?: File) => {
@@ -405,32 +471,56 @@ const App: React.FC = () => {
         if (!currentUser) return null;
 
         if (selectedStudent) {
+            const studentBackHandler = () => setSelectedStudent(null);
             if (currentUser.role === 'Familia') {
-                 return <FamilyDashboard user={currentUser} student={selectedStudent} onBack={handleBack} onUpdateStudent={updateStudentData}/>;
+                 return <FamilyDashboard user={currentUser} student={selectedStudent} onBack={studentBackHandler} onNavigate={handleNavigation}/>;
             }
-            return <StudentProfile student={selectedStudent} onBack={handleBack} userRole={currentUser.role} onUpdateStudent={updateStudentData} allUsers={users}/>;
+            return <StudentProfile student={selectedStudent} onBack={studentBackHandler} userRole={currentUser.role} onUpdateStudent={updateStudentData} allUsers={users}/>;
         }
         
-        if (currentUser.role === 'Familia') {
-            const familyStudent = studentsForUser[0];
-            if (familyStudent) {
-                return <FamilyDashboard user={currentUser} student={familyStudent} onBack={handleBack} onUpdateStudent={updateStudentData}/>;
-            }
-            return <div className="p-8 text-center text-slate-500">No hay un estudiante asociado a esta cuenta familiar.</div>;
+        if (selectedFamily && currentUser.role === 'Director') {
+            return <FamilyProfile 
+                        family={selectedFamily} 
+                        allStudents={students}
+                        onBack={() => setSelectedFamily(null)}
+                        onSelectStudent={handleSelectStudent}
+                    />;
         }
 
-        if (currentUser.role === 'Director' && view === 'dashboard') {
-             return <DirectorDashboard 
-                students={students} 
-                users={users.filter(u => u.id !== currentUser.id)}
-                onSelectStudent={handleSelectStudent}
-                onRegisterStudentClick={() => setShowRegisterStudentModal(true)}
-             />;
+        if (selectedTeacher && currentUser.role === 'Director') {
+            return <TeacherProfile 
+                        teacher={selectedTeacher} 
+                        allStudents={students}
+                        onBack={() => setSelectedTeacher(null)}
+                        onSelectStudent={handleSelectStudent}
+                    />;
+        }
+        
+        if (view === 'settings') {
+             return <ProfileSettings user={currentUser} onUpdateProfile={handleUpdateUserProfile} />;
         }
 
         switch (view) {
             case 'dashboard':
-                 return <Dashboard students={studentsForUser} onSelectStudent={handleSelectStudent} />;
+                if (currentUser.role === 'Director') {
+                    return <DirectorDashboard 
+                        students={students} 
+                        users={users.filter(u => u.id !== currentUser.id)}
+                        onSelectStudent={handleSelectStudent}
+                        onRegisterStudentClick={() => setShowRegisterStudentModal(true)}
+                        onSelectTeacher={handleSelectTeacher}
+                        onSelectFamily={handleSelectFamily}
+                    />;
+                }
+                if (currentUser.role === 'Familia') {
+                    const familyStudent = studentsForUser[0];
+                    if (familyStudent) {
+                        return <FamilyDashboard user={currentUser} student={familyStudent} onBack={handleBack} onNavigate={handleNavigation}/>;
+                    }
+                    return <div className="p-8 text-center text-slate-500">No hay un estudiante asociado a esta cuenta familiar.</div>;
+                }
+                return <Dashboard students={studentsForUser} onSelectStudent={handleSelectStudent} />;
+
             case 'students':
                 return <StudentList 
                     students={studentsForUser} 
@@ -459,9 +549,17 @@ const App: React.FC = () => {
             case 'settings':
                 return <ProfileSettings user={currentUser} onUpdateProfile={handleUpdateUserProfile} />;
             default:
-                return currentUser.role === 'Director' 
-                    ? <DirectorDashboard students={students} users={users} onSelectStudent={handleSelectStudent} onRegisterStudentClick={() => setShowRegisterStudentModal(true)} /> 
-                    : <Dashboard students={studentsForUser} onSelectStudent={handleSelectStudent} />;
+                if (currentUser.role === 'Director') {
+                     return <DirectorDashboard students={students} users={users} onSelectStudent={handleSelectStudent} onRegisterStudentClick={() => setShowRegisterStudentModal(true)} onSelectTeacher={handleSelectTeacher} onSelectFamily={handleSelectFamily} />;
+                }
+                 if (currentUser.role === 'Familia') {
+                    const familyStudent = studentsForUser[0];
+                    if (familyStudent) {
+                        return <FamilyDashboard user={currentUser} student={familyStudent} onBack={handleBack} onNavigate={handleNavigation}/>;
+                    }
+                    return <div className="p-8 text-center text-slate-500">No hay un estudiante asociado a esta cuenta familiar.</div>;
+                }
+                return <Dashboard students={studentsForUser} onSelectStudent={handleSelectStudent} />;
         }
     };
     

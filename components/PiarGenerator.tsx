@@ -59,7 +59,7 @@ const PiarGenerator: React.FC<PiarGeneratorProps> = ({ student, onDocumentAdd, o
         setPiarData(null);
 
         try {
-            const data = await generatePiar(diagnosisText, student.grade);
+            const data = await generatePiar(diagnosisText, student.grade, student.age);
             if (data) {
                 setPiarData(data);
                 const newPiarDocument: Document = {
@@ -80,7 +80,7 @@ const PiarGenerator: React.FC<PiarGeneratorProps> = ({ student, onDocumentAdd, o
         } finally {
             setIsLoading(false);
         }
-    }, [diagnosisText, student.grade, student.name, onDocumentAdd]);
+    }, [diagnosisText, student.grade, student.age, student.name, onDocumentAdd]);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {

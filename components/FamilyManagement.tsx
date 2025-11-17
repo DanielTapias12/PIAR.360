@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo } from 'react';
 import { UserGroupIcon, XMarkIcon, UserPlusIcon, UserMinusIcon } from './icons/Icons';
 import type { AuthenticatedUser, Student } from '../types';
@@ -9,11 +8,22 @@ interface AssignStudentModalProps {
     onClose: () => void;
     onConfirm: (familyUsername: string, studentId: string) => void;
     family: AuthenticatedUser;
-    assignableStudents: Student[];
+    allStudents: Student[];
+    allUsers: AuthenticatedUser[];
 }
 
-const AssignStudentModal: React.FC<AssignStudentModalProps> = ({ isOpen, onClose, onConfirm, family, assignableStudents }) => {
+const AssignStudentModal: React.FC<AssignStudentModalProps> = ({ isOpen, onClose, onConfirm, family, allStudents, allUsers }) => {
     const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+
+    const studentToFamilyMap = useMemo(() => {
+        const map = new Map<string, string>();
+        allUsers.forEach(user => {
+            if (user.role === 'Familia' && user.student_id) {
+                map.set(user.student_id, user.name);
+            }
+        });
+        return map;
+    }, [allUsers]);
 
     if (!isOpen) return null;
 
@@ -48,12 +58,18 @@ const AssignStudentModal: React.FC<AssignStudentModalProps> = ({ isOpen, onClose
                         className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 bg-slate-50 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm rounded-md"
                     >
                         <option value="" disabled>-- Elige un estudiante --</option>
-                        {assignableStudents.map(student => (
-                            <option key={student.id} value={student.id}>{student.name} ({student.grade})</option>
-                        ))}
+                        {allStudents.map(student => {
+                            const familyName = studentToFamilyMap.get(student.id);
+                            const label = familyName 
+                                ? `${student.name} (Asignado a ${familyName})`
+                                : `${student.name} (${student.grade})`;
+                            return (
+                                <option key={student.id} value={student.id}>{label}</option>
+                            );
+                        })}
                     </select>
-                    {assignableStudents.length === 0 && (
-                        <p className="text-xs text-slate-500 mt-2">No hay estudiantes sin asignar disponibles.</p>
+                    {allStudents.length === 0 && (
+                        <p className="text-xs text-slate-500 mt-2">No hay estudiantes registrados en el sistema.</p>
                     )}
                     <div className="mt-6 flex justify-end gap-3">
                         <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50">
@@ -89,15 +105,6 @@ const FamilyManagement: React.FC<FamilyManagementProps> = ({ allUsers, allStuden
         }, {} as Record<string, Student>);
     }, [allStudents]);
 
-    const assignedStudentIds = useMemo(() => new Set(
-        allUsers.filter(u => u.role === 'Familia' && u.student_id).map(u => u.student_id)
-    ), [allUsers]);
-
-    const assignableStudents = useMemo(() =>
-        allStudents.filter(s => !assignedStudentIds.has(s.id)),
-        [allStudents, assignedStudentIds]
-    );
-
     const handleOpenModal = (family: AuthenticatedUser) => {
         setSelectedFamily(family);
         setIsModalOpen(true);
@@ -121,7 +128,8 @@ const FamilyManagement: React.FC<FamilyManagementProps> = ({ allUsers, allStuden
                     onClose={handleCloseModal}
                     onConfirm={handleConfirmAssignment}
                     family={selectedFamily}
-                    assignableStudents={assignableStudents}
+                    allStudents={allStudents}
+                    allUsers={allUsers}
                 />
             )}
             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
@@ -164,7 +172,6 @@ const FamilyManagement: React.FC<FamilyManagementProps> = ({ allUsers, allStuden
                                 <div className="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
                                     <button
                                         onClick={() => handleOpenModal(family)}
-                                        disabled={!!assignedStudent}
                                         className="w-full sm:w-auto flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-sky-500 hover:bg-sky-600 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
                                     >
                                         <UserPlusIcon className="w-4 h-4 mr-2" />

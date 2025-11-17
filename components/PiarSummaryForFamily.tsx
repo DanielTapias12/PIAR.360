@@ -1,11 +1,14 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Student, PiarData, AuthenticatedUser } from '../types';
+import { PencilIcon } from './icons/Icons';
 
 
 interface PiarSummaryForFamilyProps {
     student: Student;
     user: AuthenticatedUser;
+    onNavigate: (view: string) => void;
 }
 
 const SummarySection = ({ title, items }: { title: string, items: string[] }) => (
@@ -39,7 +42,7 @@ const AdjustmentSection = ({ title, areas }: { title: string, areas: { area: str
     </div>
 );
 
-const PiarSummaryForFamily: React.FC<PiarSummaryForFamilyProps> = ({ student, user }) => {
+const PiarSummaryForFamily: React.FC<PiarSummaryForFamilyProps> = ({ student, user, onNavigate }) => {
 
     const piarData = useMemo(() => {
         // Find the most recent PIAR document that has content
@@ -75,11 +78,20 @@ const PiarSummaryForFamily: React.FC<PiarSummaryForFamilyProps> = ({ student, us
             </div>
 
             <div className="mt-8 pt-6 border-t border-slate-200">
-                <h3 className="text-xl font-bold text-slate-800">Datos del Acudiente</h3>
+                 <div className="flex justify-between items-center">
+                    <h3 className="text-xl font-bold text-slate-800">Datos del Acudiente</h3>
+                    <button 
+                        onClick={() => onNavigate('settings')}
+                        className="inline-flex items-center px-3 py-1.5 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 transition-colors"
+                    >
+                        <PencilIcon className="w-4 h-4 mr-2" />
+                        Editar Datos
+                    </button>
+                </div>
                  <div className="mt-4 space-y-3 text-sm text-slate-700 bg-slate-50 p-4 rounded-lg border border-slate-200">
                     <p><span className="font-semibold w-24 inline-block">Nombre:</span> {user.name}</p>
                     <p><span className="font-semibold w-24 inline-block">Parentesco:</span> {user.relationship || 'No especificado'}</p>
-                    <p><span className="font-semibold w-24 inline-block">Email:</span> <a href={`mailto:${user.email}`} className="text-sky-600 hover:underline">{user.email}</a></p>
+                    <p><span className="font-semibold w-24 inline-block">Email:</span> {user.email ? <a href={`mailto:${user.email}`} className="text-sky-600 hover:underline">{user.email}</a> : 'No especificado'}</p>
                     <p><span className="font-semibold w-24 inline-block">Teléfono:</span> {user.phone || 'No especificado'}</p>
                 </div>
             </div>

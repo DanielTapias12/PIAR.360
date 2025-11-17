@@ -19,6 +19,8 @@ interface DirectorDashboardProps {
     users: AuthenticatedUser[];
     onSelectStudent: (student: Student) => void;
     onRegisterStudentClick: () => void;
+    onSelectTeacher: (teacher: AuthenticatedUser) => void;
+    onSelectFamily: (family: AuthenticatedUser) => void;
 }
 
 const StatCard = ({ title, value, icon, color }: { title: string, value: string | number, icon: React.FC<any>, color: string }) => {
@@ -65,7 +67,7 @@ const InstitutionalAlerts = ({ alerts, students, onSelectStudent }: { alerts: Al
     </div>
 );
 
-const UserDirectory = ({ users }: { users: AuthenticatedUser[] }) => {
+const UserDirectory = ({ users, onSelectTeacher, onSelectFamily }: { users: AuthenticatedUser[], onSelectTeacher: (teacher: AuthenticatedUser) => void, onSelectFamily: (family: AuthenticatedUser) => void }) => {
     return (
         <div className="bg-white p-6 rounded-xl shadow-sm">
             <div className="flex justify-between items-center mb-4">
@@ -85,7 +87,14 @@ const UserDirectory = ({ users }: { users: AuthenticatedUser[] }) => {
                                 </thead>
                                 <tbody className="divide-y divide-slate-200 bg-white">
                                     {users.map(user => (
-                                        <tr key={user.id}>
+                                        <tr 
+                                            key={user.id}
+                                            onClick={() => {
+                                                if (user.role === 'Docente') onSelectTeacher(user);
+                                                if (user.role === 'Familia') onSelectFamily(user);
+                                            }}
+                                            className={(user.role === 'Docente' || user.role === 'Familia') ? 'cursor-pointer hover:bg-slate-50 transition-colors' : ''}
+                                        >
                                             <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 sm:pl-6">{user.name}</td>
                                             <td className="whitespace-nowrap px-3 py-4 text-sm text-slate-500">{user.role}</td>
                                             <td className="whitespace-nowrap px-3 py-4 text-sm text-slate-500">{user.username}</td>
@@ -102,7 +111,7 @@ const UserDirectory = ({ users }: { users: AuthenticatedUser[] }) => {
 };
 
 
-const DirectorDashboard: React.FC<DirectorDashboardProps> = ({ students, users, onSelectStudent, onRegisterStudentClick }) => {
+const DirectorDashboard: React.FC<DirectorDashboardProps> = ({ students, users, onSelectStudent, onRegisterStudentClick, onSelectTeacher, onSelectFamily }) => {
     
     const { gradeData, complianceData, teachers } = useMemo(() => {
         const grades = [...new Set(students.map(s => s.grade))].sort();
@@ -169,29 +178,34 @@ const DirectorDashboard: React.FC<DirectorDashboardProps> = ({ students, users, 
                     <h3 className="text-lg font-semibold text-slate-800 mb-4">Cumplimiento General PIAR</h3>
                      <ResponsiveContainer width="100%" height={300}>
                         <PieChart>
-                            <Pie data={complianceData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={100} fill="#8884d8" paddingAngle={5} labelLine={false}
-                                 label={({ cx, cy, midAngle, innerRadius, outerRadius, value, index }) => {
-                                    if (value === 0) return null;
-                                    const RADIAN = Math.PI / 180;
-                                    const radius = innerRadius + (outerRadius - innerRadius) * 1.2;
-                                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                                    const percent = ((value / students.length) * 100).toFixed(0);
-                                    return (
-                                        <text x={x} y={y} fill={COLORS[index % COLORS.length]} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-xs font-semibold">
-                                            {`${complianceData[index].name} (${percent}%)`}
-                                        </text>
-                                    );
-                                }}
+                            <Tooltip
+                                cursor={{ fill: 'transparent' }}
+                                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.5rem' }}
+                            />
+                            <Pie
+                                data={complianceData}
+                                dataKey="value"
+                                nameKey="name"
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={70}
+                                outerRadius={100}
+                                fill="#8884d8"
+                                paddingAngle={5}
+                                labelLine={false}
                             >
                                 {complianceData.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                             </Pie>
-                             <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="text-3xl font-bold fill-slate-800">
+                            <Legend
+                                iconSize={10}
+                                wrapperStyle={{ fontSize: '12px', bottom: 0 }}
+                            />
+                            <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="text-3xl font-bold fill-slate-800">
                                 {students.length > 0 ? `${((complianceData[0].value / students.length) * 100).toFixed(0)}%` : 'N/A'}
                             </text>
-                             <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" className="text-sm fill-slate-500">
+                            <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" className="text-sm fill-slate-500">
                                 Completado
                             </text>
                         </PieChart>
@@ -201,7 +215,7 @@ const DirectorDashboard: React.FC<DirectorDashboardProps> = ({ students, users, 
 
              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2">
-                     <UserDirectory users={users} />
+                     <UserDirectory users={users} onSelectTeacher={onSelectTeacher} onSelectFamily={onSelectFamily} />
                 </div>
                 <InstitutionalAlerts alerts={[]} students={students} onSelectStudent={onSelectStudent} />
             </div>
