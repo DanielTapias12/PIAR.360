@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ArrowLeftIcon, UserCircleIcon, UsersIcon } from './icons/Icons';
 import type { AuthenticatedUser, Student } from '../types';
@@ -24,7 +25,7 @@ const InfoItem = ({ label, value, icon }: { label: string, value: string | undef
 
 const FamilyProfile: React.FC<FamilyProfileProps> = ({ family, allStudents, onBack, onSelectStudent }) => {
     
-    const assignedStudent = allStudents.find(student => student.id === family.student_id);
+    const assignedStudents = allStudents.filter(student => student.family_member_ids && student.family_member_ids.includes(family.id));
 
     const riskColorMap = {
         bajo: 'bg-green-100 text-green-800',
@@ -62,25 +63,29 @@ const FamilyProfile: React.FC<FamilyProfileProps> = ({ family, allStudents, onBa
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-full">
                          <div className="flex items-center gap-3 mb-4">
                              <UsersIcon className="w-6 h-6 text-sky-600" />
-                            <h3 className="text-xl font-bold text-slate-800">Estudiante Vinculado</h3>
+                            <h3 className="text-xl font-bold text-slate-800">Estudiantes Vinculados</h3>
                         </div>
-
-                        {assignedStudent ? (
-                            <div onClick={() => onSelectStudent(assignedStudent)} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200 hover:bg-sky-50 hover:border-sky-300 cursor-pointer transition-colors">
-                                <img src={assignedStudent.photo_url} alt={assignedStudent.name} className="w-12 h-12 rounded-full"/>
-                                <div className="flex-grow">
-                                    <p className="font-semibold text-slate-800">{assignedStudent.name}</p>
-                                    <p className="text-sm text-slate-500">{assignedStudent.grade}</p>
+                        
+                        <div className="space-y-4">
+                            {assignedStudents.length > 0 ? (
+                                assignedStudents.map(student => (
+                                    <div key={student.id} onClick={() => onSelectStudent(student)} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200 hover:bg-sky-50 hover:border-sky-300 cursor-pointer transition-colors">
+                                        <img src={student.photo_url} alt={student.name} className="w-12 h-12 rounded-full"/>
+                                        <div className="flex-grow">
+                                            <p className="font-semibold text-slate-800">{student.name}</p>
+                                            <p className="text-sm text-slate-500">{student.grade}</p>
+                                        </div>
+                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${riskColorMap[student.risk_level]}`}>
+                                            {student.risk_level}
+                                        </span>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="flex items-center justify-center h-full text-center text-slate-500 py-8">
+                                    <p>Este acudiente no tiene estudiantes vinculados.</p>
                                 </div>
-                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${riskColorMap[assignedStudent.risk_level]}`}>
-                                    {assignedStudent.risk_level}
-                                </span>
-                            </div>
-                        ) : (
-                            <div className="flex items-center justify-center h-full text-center text-slate-500 py-8">
-                                <p>Este acudiente no tiene un estudiante vinculado.</p>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

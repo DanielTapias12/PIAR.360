@@ -43,7 +43,6 @@ export interface AuthenticatedUser {
     username: string;
     name: string;
     role: UserRole;
-    student_id?: string;
     email?: string;
     photo_url?: string;
     age?: string;
@@ -66,6 +65,7 @@ export interface Student {
     teachers: string[];
     documents: Document[];
     progress_entries: ProgressEntry[];
+    family_member_ids?: string[] | null;
 }
 
 export interface NewStudentData {

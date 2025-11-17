@@ -1,10 +1,83 @@
 
 import React, { useState, useMemo } from 'react';
-import { ArrowLeftIcon, DocumentIcon, ChartBarIcon, WandIcon, UserCircleIcon, UploadIcon, PencilIcon } from './icons/Icons';
+import { ArrowLeftIcon, DocumentIcon, ChartBarIcon, WandIcon, UserCircleIcon, UploadIcon, PencilIcon, XMarkIcon } from './icons/Icons';
 import PiarGenerator from './PiarGenerator';
 import ProgressTracking from './ProgressTracking';
 import { supabase } from '../services/supabaseClient';
 import type { Student, Document, ProgressEntry, UserRole, AuthenticatedUser } from '../types';
+
+
+interface ManageFamilyModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    student: Student;
+    allFamilies: AuthenticatedUser[];
+    onSave: (familyIds: string[]) => void;
+}
+
+const ManageFamilyModal: React.FC<ManageFamilyModalProps> = ({ isOpen, onClose, student, allFamilies, onSave }) => {
+    const [selectedIds, setSelectedIds] = useState<string[]>(() => student.family_member_ids || []);
+
+    if (!isOpen) return null;
+    
+    const handleSelect = (familyId: string) => {
+        setSelectedIds(prev =>
+            prev.includes(familyId)
+                ? prev.filter(id => id !== familyId)
+                : [...prev, familyId]
+        );
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSave(selectedIds);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md m-4">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-bold text-slate-800">Administrar Acudientes</h2>
+                    <button onClick={onClose} className="p-1 rounded-full text-slate-400 hover:bg-slate-200">
+                        <XMarkIcon className="w-6 h-6" />
+                    </button>
+                </div>
+                <p className="text-sm text-slate-600 mb-2">
+                    Selecciona los acudientes para: <span className="font-semibold text-sky-700">{student.name}</span>
+                </p>
+
+                <form onSubmit={handleSubmit}>
+                    <div className="mt-4 max-h-60 overflow-y-auto border border-slate-200 rounded-md p-2 space-y-1 bg-slate-50">
+                        {allFamilies.map(family => (
+                            <label key={family.id} htmlFor={`family-checkbox-${family.id}`} className="flex items-center p-2 rounded-md hover:bg-slate-100 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    id={`family-checkbox-${family.id}`}
+                                    checked={selectedIds.includes(family.id)}
+                                    onChange={() => handleSelect(family.id)}
+                                    className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                                />
+                                <span className="ml-3 text-sm text-slate-700">{family.name}</span>
+                            </label>
+                        ))}
+                         {allFamilies.length === 0 && (
+                            <p className="text-xs text-slate-500 text-center p-4">No hay familiares registrados en el sistema.</p>
+                        )}
+                    </div>
+                    <div className="mt-6 flex justify-end gap-3">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50">
+                            Cancelar
+                        </button>
+                        <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-sky-600 border border-transparent rounded-md shadow-sm hover:bg-sky-700">
+                            Guardar Cambios
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 
 interface StudentProfileProps {
     student: Student;
@@ -12,6 +85,7 @@ interface StudentProfileProps {
     userRole: UserRole;
     onUpdateStudent: (student: Student) => void;
     allUsers: AuthenticatedUser[];
+    onUpdateStudentFamily: (studentId: string, familyIds: string[] | null) => void;
 }
 
 type ProfileTab = 'info' | 'piar' | 'documents' | 'progress';
@@ -31,7 +105,7 @@ const TabButton = ({ label, icon, isActive, onClick }: { label: string, icon: Re
     );
 };
 
-const StudentProfile: React.FC<StudentProfileProps> = ({ student, onBack, onUpdateStudent, allUsers }) => {
+const StudentProfile: React.FC<StudentProfileProps> = ({ student, onBack, onUpdateStudent, allUsers, onUpdateStudentFamily }) => {
     const [activeTab, setActiveTab] = useState<ProfileTab>('info');
     const [documentTypeFilter, setDocumentTypeFilter] = useState<'all' | 'informe' | 'evaluacion' | 'PIAR'>('all');
     const [documentSortOrder, setDocumentSortOrder] = useState<'desc' | 'asc'>('desc');
@@ -40,10 +114,12 @@ const StudentProfile: React.FC<StudentProfileProps> = ({ student, onBack, onUpda
     const [isUploading, setIsUploading] = useState<boolean>(false);
     const [isEditing, setIsEditing] = useState<boolean>(false);
     const [editableStudent, setEditableStudent] = useState<Student>(student);
+    const [isFamilyModalOpen, setIsFamilyModalOpen] = useState(false);
 
-    const assignedFamilyMember = useMemo(() => {
-        return allUsers.find(user => user.student_id === student.id);
-    }, [allUsers, student.id]);
+    const assignedFamilyMembers = useMemo(() => {
+        if (!student.family_member_ids) return [];
+        return allUsers.filter(user => user.role === 'Familia' && student.family_member_ids!.includes(user.id));
+    }, [allUsers, student.family_member_ids]);
 
 
     const handleDocumentAdd = (document: Document) => {
@@ -223,16 +299,26 @@ const StudentProfile: React.FC<StudentProfileProps> = ({ student, onBack, onUpda
                 </div>
 
                 <div className="mt-8 pt-6 border-t border-slate-200">
-                    <h3 className="text-xl font-bold text-slate-800">Información del Acudiente</h3>
-                    {assignedFamilyMember ? (
-                         <div className="mt-4 space-y-3 text-sm text-slate-700">
-                            <p><span className="font-semibold w-24 inline-block">Nombre:</span> {assignedFamilyMember.name}</p>
-                            <p><span className="font-semibold w-24 inline-block">Parentesco:</span> {assignedFamilyMember.relationship || 'No especificado'}</p>
-                            <p><span className="font-semibold w-24 inline-block">Email:</span> <a href={`mailto:${assignedFamilyMember.email}`} className="text-sky-600 hover:underline">{assignedFamilyMember.email}</a></p>
-                            <p><span className="font-semibold w-24 inline-block">Teléfono:</span> {assignedFamilyMember.phone || 'No especificado'}</p>
+                    <div className="flex justify-between items-center">
+                        <h3 className="text-xl font-bold text-slate-800">Acudientes Asignados</h3>
+                         <button onClick={() => setIsFamilyModalOpen(true)} className="inline-flex items-center px-3 py-1.5 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50">
+                            Administrar Acudientes
+                        </button>
+                    </div>
+
+                    {assignedFamilyMembers.length > 0 ? (
+                        <div className="mt-4 space-y-4">
+                            {assignedFamilyMembers.map(familyMember => (
+                                <div key={familyMember.id} className="text-sm text-slate-700 p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+                                    <p><span className="font-semibold w-24 inline-block">Nombre:</span> {familyMember.name}</p>
+                                    <p><span className="font-semibold w-24 inline-block">Parentesco:</span> {familyMember.relationship || 'No especificado'}</p>
+                                    <p><span className="font-semibold w-24 inline-block">Email:</span> <a href={`mailto:${familyMember.email}`} className="text-sky-600 hover:underline">{familyMember.email}</a></p>
+                                    <p><span className="font-semibold w-24 inline-block">Teléfono:</span> {familyMember.phone || 'No especificado'}</p>
+                                </div>
+                            ))}
                         </div>
                     ) : (
-                        <p className="mt-4 text-sm text-slate-500">No hay un acudiente asignado a este estudiante.</p>
+                        <p className="mt-4 text-sm text-slate-500">No hay acudientes asignados a este estudiante.</p>
                     )}
                 </div>
             </div>
@@ -379,6 +465,16 @@ const StudentProfile: React.FC<StudentProfileProps> = ({ student, onBack, onUpda
                     {renderTabContent()}
                 </div>
             </div>
+             <ManageFamilyModal
+                isOpen={isFamilyModalOpen}
+                onClose={() => setIsFamilyModalOpen(false)}
+                student={student}
+                allFamilies={allUsers.filter(u => u.role === 'Familia')}
+                onSave={(familyIds) => {
+                    onUpdateStudentFamily(student.id, familyIds);
+                    setIsFamilyModalOpen(false);
+                }}
+            />
         </div>
     );
 };

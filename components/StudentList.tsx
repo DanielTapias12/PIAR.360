@@ -1,6 +1,6 @@
 
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { SearchIcon, UserPlusIcon, XMarkIcon, CheckCircleIcon, UserMinusIcon, UserCircleIcon } from './icons/Icons';
 import type { AuthenticatedUser, Student } from '../types';
 
@@ -81,6 +81,8 @@ interface StudentListProps {
     onAssignStudent: (studentId: string) => void;
     onUnassignStudent: (studentId: string) => void;
     onRegisterStudentClick: () => void;
+    initialFilter: Record<string, any> | null;
+    onClearInitialFilter: () => void;
 }
 
 interface FilterButtonProps {
@@ -100,20 +102,33 @@ const FilterButton: React.FC<FilterButtonProps> = ({ label, isActive, onClick })
 );
 
 
-const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSelectStudent, user, onAssignStudent, onUnassignStudent, onRegisterStudentClick }) => {
+const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSelectStudent, user, onAssignStudent, onUnassignStudent, onRegisterStudentClick, initialFilter, onClearInitialFilter }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [viewMode, setViewMode] = useState<'mine' | 'all'>('mine');
     const [gradeFilter, setGradeFilter] = useState('all');
     const [riskFilter, setRiskFilter] = useState<'all' | 'bajo' | 'medio' | 'alto'>('all');
-    const [teacherFilter, setTeacherFilter] = useState('all');
+    const [piarFilter, setPiarFilter] = useState<'all' | 'completed' | 'pending'>('all');
+
+    useEffect(() => {
+        if (initialFilter) {
+            // Reset filters first to not compound them
+            setRiskFilter('all');
+            setPiarFilter('all');
+            setGradeFilter('all');
+
+            if (initialFilter.risk_level) {
+                setRiskFilter(initialFilter.risk_level);
+            }
+            if (initialFilter.piar_status) {
+                setPiarFilter(initialFilter.piar_status);
+            }
+            onClearInitialFilter();
+        }
+    }, [initialFilter, onClearInitialFilter]);
     
     const studentsToDisplay = viewMode === 'all' ? allStudents : students;
     
     const availableGrades = useMemo(() => [...new Set(allStudents.map(s => s.grade))].sort(), [allStudents]);
-    const availableTeachers = useMemo(() => {
-        const allTeachers = allStudents.flatMap(s => s.teachers || []);
-        return [...new Set(allTeachers)].sort();
-    }, [allStudents]);
     
     const riskLevels: { value: 'all' | 'bajo' | 'medio' | 'alto'; label: string }[] = [
         { value: 'all', label: 'Todo Riesgo' },
@@ -122,13 +137,21 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
         { value: 'alto', label: 'Alto' }
     ];
 
+    const piarStatuses: { value: 'all' | 'completed' | 'pending'; label: string }[] = [
+        { value: 'all', label: 'Todos' },
+        { value: 'completed', label: 'Completados' },
+        { value: 'pending', label: 'Pendientes' }
+    ];
+
     const filteredStudents = useMemo(() => studentsToDisplay.filter(student => {
         const nameMatch = student.name.toLowerCase().includes(searchTerm.toLowerCase());
         const gradeMatch = gradeFilter === 'all' || student.grade === gradeFilter;
         const riskMatch = riskFilter === 'all' || student.risk_level === riskFilter;
-        const teacherMatch = teacherFilter === 'all' || (student.teachers && student.teachers.includes(teacherFilter));
-        return nameMatch && gradeMatch && riskMatch && teacherMatch;
-    }), [studentsToDisplay, searchTerm, gradeFilter, riskFilter, teacherFilter]);
+        const piarMatch = piarFilter === 'all' ||
+            (piarFilter === 'completed' && student.documents.some(d => d.type === 'PIAR')) ||
+            (piarFilter === 'pending' && !student.documents.some(d => d.type === 'PIAR'));
+        return nameMatch && gradeMatch && riskMatch && piarMatch;
+    }), [studentsToDisplay, searchTerm, gradeFilter, riskFilter, piarFilter]);
 
     const ModeButton = ({ label, targetMode }: { label: string; targetMode: 'mine' | 'all' }) => {
         const isActive = viewMode === targetMode;
@@ -194,19 +217,13 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
                         ))}
                     </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium text-slate-700 shrink-0">Docente:</span>
-                     <select
-                        id="teacher-filter"
-                        value={teacherFilter}
-                        onChange={(e) => setTeacherFilter(e.target.value)}
-                        className="py-1.5 pl-3 pr-8 text-sm font-medium bg-white text-slate-700 shadow-sm rounded-lg border-transparent focus:ring-2 focus:ring-sky-500 focus:border-transparent cursor-pointer"
-                    >
-                        <option value="all">Todos los Docentes</option>
-                        {availableTeachers.map(teacher => (
-                            <option key={teacher} value={teacher}>{teacher}</option>
+                 <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium text-slate-700 shrink-0">PIAR:</span>
+                    <div className="flex items-center bg-slate-200/70 rounded-lg p-1 flex-wrap gap-1">
+                        {piarStatuses.map(status => (
+                            <FilterButton key={status.value} label={status.label} isActive={piarFilter === status.value} onClick={() => setPiarFilter(status.value)} />
                         ))}
-                    </select>
+                    </div>
                 </div>
             </div>
             

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { AlertIcon, StudentsIcon, CheckCircleIcon } from './icons/Icons';
+import { AlertIcon, StudentsIcon, CheckCircleIcon, LightbulbIcon, ShieldCheckIcon } from './icons/Icons';
 import type { Student } from '../types';
 
 interface Alert {
@@ -16,12 +16,18 @@ interface Alert {
 interface DashboardProps {
     students: Student[];
     onSelectStudent: (student: Student) => void;
+    onNavigateWithFilter: (view: string, filter: Record<string, any>) => void;
 }
 
-const StatCard = ({ title, value, icon, color }: { title: string, value: string | number, icon: React.FC<any>, color: string }) => {
+const StatCard = ({ title, value, icon, color, onClick }: { title: string, value: string | number, icon: React.FC<any>, color: string, onClick?: () => void }) => {
     const Icon = icon;
+    const isClickable = !!onClick;
     return (
-        <div className="bg-white p-6 rounded-xl shadow-sm flex items-center">
+        <button
+            onClick={onClick}
+            disabled={!isClickable}
+            className={`bg-white p-6 rounded-xl shadow-sm flex items-center w-full text-left ${isClickable ? 'hover:shadow-lg hover:-translate-y-1 transition-transform duration-300 ease-in-out cursor-pointer' : 'cursor-default'}`}
+        >
             <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${color}`}>
                 <Icon className="w-6 h-6 text-white" />
             </div>
@@ -29,7 +35,7 @@ const StatCard = ({ title, value, icon, color }: { title: string, value: string 
                 <p className="text-slate-500 text-sm">{title}</p>
                 <p className="text-2xl font-bold text-slate-800">{value}</p>
             </div>
-        </div>
+        </button>
     );
 };
 
@@ -62,14 +68,49 @@ const Alerts = ({ alerts, students, onSelectStudent }: { alerts: Alert[], studen
 );
 
 
-const Dashboard: React.FC<DashboardProps> = ({ students, onSelectStudent }) => {
-    const highRiskStudents = students.filter(s => s.risk_level === 'alto');
-    const completedPiarCount = students.filter(s => s.documents.some(d => d.type === 'PIAR')).length;
+const CriteriaExplanation: React.FC = () => {
+    return (
+        <div className="bg-white p-6 rounded-xl shadow-sm">
+            <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+                <LightbulbIcon className="w-5 h-5 mr-2 text-sky-500" />
+                Criterios de Medición
+            </h3>
+            <div className="space-y-4">
+                <div className="flex items-start">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-red-100 flex-shrink-0">
+                        <AlertIcon className="w-5 h-5 text-red-500" />
+                    </div>
+                    <div className="ml-4">
+                        <h4 className="font-semibold text-slate-700">Estudiantes en Riesgo Alto</h4>
+                        <p className="text-sm text-slate-500 mt-1">
+                            Se considera que un estudiante está en "Riesgo Alto" según la valoración inicial del docente al momento del registro. Este criterio se basa en el diagnóstico, barreras de aprendizaje evidentes y la necesidad urgente de ajustes razonables.
+                        </p>
+                    </div>
+                </div>
+                 <div className="flex items-start">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-green-100 flex-shrink-0">
+                         <ShieldCheckIcon className="w-5 h-5 text-green-500" />
+                    </div>
+                    <div className="ml-4">
+                        <h4 className="font-semibold text-slate-700">PIAR Completados</h4>
+                        <p className="text-sm text-slate-500 mt-1">
+                            Un PIAR se marca como "Completado" cuando existe al menos un documento de tipo "PIAR" generado o subido en el perfil del estudiante. Esto indica que el plan inicial de ajustes ha sido formalizado.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const Dashboard: React.FC<DashboardProps> = ({ students, onSelectStudent, onNavigateWithFilter }) => {
+    const highRiskStudents = (students || []).filter(s => s.risk_level === 'alto');
+    const completedPiarCount = (students || []).filter(s => (s.documents || []).some(d => d.type === 'PIAR')).length;
 
     const chartData = [
-        { name: 'Bajo', count: students.filter(s => s.risk_level === 'bajo').length, fill: '#4ade80' },
-        { name: 'Medio', count: students.filter(s => s.risk_level === 'medio').length, fill: '#facc15' },
-        { name: 'Alto', count: students.filter(s => s.risk_level === 'alto').length, fill: '#f87171' },
+        { name: 'Bajo', count: (students || []).filter(s => s.risk_level === 'bajo').length, fill: '#4ade80' },
+        { name: 'Medio', count: (students || []).filter(s => s.risk_level === 'medio').length, fill: '#facc15' },
+        { name: 'Alto', count: (students || []).filter(s => s.risk_level === 'alto').length, fill: '#f87171' },
     ];
 
     return (
@@ -80,9 +121,27 @@ const Dashboard: React.FC<DashboardProps> = ({ students, onSelectStudent }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard title="Total Estudiantes" value={students.length} icon={StudentsIcon} color="bg-sky-500" />
-                <StatCard title="Estudiantes en Riesgo Alto" value={highRiskStudents.length} icon={AlertIcon} color="bg-red-500" />
-                <StatCard title="PIAR Completados" value={`${completedPiarCount} de ${students.length}`} icon={CheckCircleIcon} color="bg-green-500" />
+                <StatCard 
+                    title="Total Estudiantes" 
+                    value={students.length} 
+                    icon={StudentsIcon} 
+                    color="bg-sky-500" 
+                    onClick={() => onNavigateWithFilter('students', {})} 
+                />
+                <StatCard 
+                    title="Estudiantes en Riesgo Alto" 
+                    value={highRiskStudents.length} 
+                    icon={AlertIcon} 
+                    color="bg-red-500" 
+                    onClick={() => onNavigateWithFilter('students', { risk_level: 'alto' })}
+                />
+                <StatCard 
+                    title="PIAR Completados" 
+                    value={`${completedPiarCount} de ${students.length}`} 
+                    icon={CheckCircleIcon} 
+                    color="bg-green-500" 
+                    onClick={() => onNavigateWithFilter('students', { piar_status: 'completed' })}
+                />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -99,6 +158,10 @@ const Dashboard: React.FC<DashboardProps> = ({ students, onSelectStudent }) => {
                     </ResponsiveContainer>
                 </div>
                 <Alerts alerts={[]} students={students} onSelectStudent={onSelectStudent}/>
+            </div>
+            
+            <div>
+                <CriteriaExplanation />
             </div>
         </div>
     );

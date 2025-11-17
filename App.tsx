@@ -36,6 +36,7 @@ const App: React.FC = () => {
     const [showRegisterStudentModal, setShowRegisterStudentModal] = useState(false);
     const [showAssignToFamilyModal, setShowAssignToFamilyModal] = useState(false);
     const [newlyRegisteredStudent, setNewlyRegisteredStudent] = useState<Student | null>(null);
+    const [initialStudentFilter, setInitialStudentFilter] = useState<Record<string, any> | null>(null);
 
 
     useEffect(() => {
@@ -86,9 +87,11 @@ const App: React.FC = () => {
                     // Sanitize student data to prevent crashes from null/non-array values
                     const processedStudents = (studentsData as any[] || []).map(student => ({
                         ...student,
+                        photo_url: student.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name || '?')}&background=0ea5e9&color=fff`,
                         teachers: Array.isArray(student.teachers) ? student.teachers : [],
                         documents: Array.isArray(student.documents) ? student.documents : [],
                         progress_entries: Array.isArray(student.progress_entries) ? student.progress_entries : [],
+                        family_member_ids: Array.isArray(student.family_member_ids) ? student.family_member_ids : [],
                     }));
 
                     setStudents(processedStudents as Student[]);
@@ -155,7 +158,7 @@ const App: React.FC = () => {
             case 'Docente':
                 return students.filter(s => s.teachers && s.teachers.includes(currentUser.name));
             case 'Familia':
-                return students.filter(s => s.id === currentUser.student_id);
+                return students.filter(s => s.family_member_ids && s.family_member_ids.includes(currentUser.id));
              case 'Director':
                 return students;
             default:
@@ -188,10 +191,40 @@ const App: React.FC = () => {
         setSelectedFamily(null);
         setView(targetView);
     };
+    
+    const handleNavigationWithFilter = (targetView: string, filter: Record<string, any>) => {
+        setInitialStudentFilter(filter);
+        handleNavigation(targetView);
+    };
 
     const updateStudentData = async (updatedStudent: Student) => {
-        const { id, ...updatePayload } = updatedStudent;
+        const {
+          id,
+          name,
+          age,
+          photo_url,
+          grade,
+          risk_level,
+          diagnosis,
+          teachers,
+          documents,
+          progress_entries,
+          family_member_ids,
+        } = updatedStudent;
 
+        const updatePayload = {
+          name,
+          age,
+          photo_url,
+          grade,
+          risk_level,
+          diagnosis,
+          teachers,
+          documents,
+          progress_entries,
+          family_member_ids,
+        };
+        
         const { data, error } = await supabase
             .from('students')
             .update(updatePayload)
@@ -200,7 +233,7 @@ const App: React.FC = () => {
         
         if (error) {
             console.error("Failed to update student:", error);
-            addNotification('Error de Sincronización', `No se pudo actualizar el estudiante ${updatedStudent.name}.`);
+            addNotification('Error de Sincronización', `No se pudo actualizar. Razón: ${error.message}`);
             return;
         }
 
@@ -209,9 +242,11 @@ const App: React.FC = () => {
              // Re-sanitize the single updated student record
             const processedStudent: Student = {
                 ...returnedStudent,
+                photo_url: returnedStudent.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(returnedStudent.name || '?')}&background=0ea5e9&color=fff`,
                 teachers: Array.isArray(returnedStudent.teachers) ? returnedStudent.teachers : [],
                 documents: Array.isArray(returnedStudent.documents) ? returnedStudent.documents : [],
                 progress_entries: Array.isArray(returnedStudent.progress_entries) ? returnedStudent.progress_entries : [],
+                family_member_ids: Array.isArray(returnedStudent.family_member_ids) ? returnedStudent.family_member_ids : [],
             };
             
             setStudents(prevStudents => prevStudents.map(s => s.id === processedStudent.id ? processedStudent : s));
@@ -290,6 +325,7 @@ const App: React.FC = () => {
             documents: [],
             progress_entries: [],
             teachers: [],
+            family_member_ids: [],
             ...newStudentData,
         };
 
@@ -307,9 +343,11 @@ const App: React.FC = () => {
             const newStudent = data[0] as any;
              const processedStudent: Student = {
                 ...newStudent,
+                photo_url: newStudent.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(newStudent.name || '?')}&background=0ea5e9&color=fff`,
                 teachers: Array.isArray(newStudent.teachers) ? newStudent.teachers : [],
                 documents: Array.isArray(newStudent.documents) ? newStudent.documents : [],
                 progress_entries: Array.isArray(newStudent.progress_entries) ? newStudent.progress_entries : [],
+                family_member_ids: Array.isArray(newStudent.family_member_ids) ? newStudent.family_member_ids : [],
             };
             setStudents(prev => [processedStudent, ...prev]);
             return processedStudent;
@@ -330,90 +368,57 @@ const App: React.FC = () => {
         }
     };
 
-    const handleAssignStudentToFamily = async (familyUsername: string, studentId: string) => {
-        const familyUser = users.find(u => u.username === familyUsername);
-        if (!familyUser) {
-            addNotification('Error de Asignación', `No se encontró la familia con el usuario "${familyUsername}".`);
+    const handleAssignStudentToFamily = async (familyId: string, studentId: string) => {
+        const familyUser = users.find(u => u.id === familyId);
+        const student = students.find(s => s.id === studentId);
+
+        if (!familyUser || !student) {
+            addNotification('Error de Asignación', `No se encontró la familia o el estudiante.`);
             return;
         }
-
-        // --- Start of Robust Re-assignment Logic ---
-        const previousFamily = users.find(u => u.student_id === studentId && u.id !== familyUser.id);
-
-        // 1. Try to assign to the new family first.
-        const { error: assignError } = await supabase
-            .from('users')
-            .update({ student_id: studentId })
-            .eq('id', familyUser.id);
-
-        if (assignError) {
-            console.error('Assign error:', assignError);
-            addNotification('Error de Asignación', `No se pudo asignar el estudiante. Detalle: ${assignError.message}`);
-            return; // Stop if the primary operation fails
-        }
         
-        addNotification('Asignación Exitosa', `Estudiante asignado a ${familyUser.name}.`);
+        const currentIds = student.family_member_ids || [];
+        if (currentIds.includes(familyId)) return; // Already assigned
 
-        // 2. If assignment was successful AND there was a previous family, unassign from them.
-        if (previousFamily) {
-            const { error: unassignError } = await supabase
-                .from('users')
-                .update({ student_id: null })
-                .eq('id', previousFamily.id);
-            
-            if (unassignError) {
-                console.error('Unassign error after re-assignment:', unassignError);
-                addNotification('Asignación Parcial', `El estudiante fue asignado, pero no se pudo desasignar de ${previousFamily.name}. Error: ${unassignError.message}`);
-            } else {
-                addNotification('Desasignación Exitosa', `Se quitó la asignación de la familia anterior (${previousFamily.name}).`);
-            }
-        }
-        // --- End of Robust Re-assignment Logic ---
-
-        // 3. Refresh user list to reflect changes.
-        const { data: refreshedUsers, error: fetchError } = await supabase.from('users').select('*');
-        if (refreshedUsers) {
-            setUsers(refreshedUsers as AuthenticatedUser[]);
-        } else if (fetchError) {
-            console.error("Fetch users after assignment failed:", fetchError);
-            addNotification('Error de Sincronización', 'No se pudo refrescar la lista de usuarios.');
-        }
+        const updatedIds = [...currentIds, familyId];
+        await updateStudentData({ ...student, family_member_ids: updatedIds });
+        addNotification('Asignación Exitosa', `${student.name} asignado a ${familyUser.name}.`);
     };
     
     const handleConfirmAssignmentAndNotify = async (familyUsername: string, studentId: string) => {
-        await handleAssignStudentToFamily(familyUsername, studentId);
+        const familyUser = users.find(u => u.username === familyUsername);
+        if (familyUser) {
+            await handleUpdateStudentFamily(studentId, [familyUser.id]);
+            addNotification('Asignación Exitosa', `${newlyRegisteredStudent?.name} asignado a ${familyUser.name}.`);
+        }
         setShowAssignToFamilyModal(false);
         setNewlyRegisteredStudent(null);
     };
 
-    const handleUnassignStudentFromFamily = async (familyUsername: string) => {
-        const familyUser = users.find(u => u.username === familyUsername);
-        if (!familyUser) {
-            addNotification('Error de Desasignación', `No se encontró la familia con el usuario "${familyUsername}".`);
-            return;
-        }
-
-        const { error } = await supabase
-            .from('users')
-            .update({ student_id: null })
-            .eq('id', familyUser.id);
-
-        if (error) {
-            console.error("Unassign error:", error);
-            addNotification('Error de Desasignación', `No se pudo quitar la asignación. Detalle: ${error.message}`);
+    const handleUnassignFamilyFromStudent = async (familyId: string, studentId: string) => {
+        const student = students.find(s => s.id === studentId);
+        const familyUser = users.find(u => u.id === familyId);
+        if (!student || !familyUser) {
+            addNotification('Error de Desasignación', `No se pudo encontrar la familia o el estudiante.`);
             return;
         }
         
-        addNotification('Desasignación Exitosa', `Se quitó el estudiante de la familia ${familyUser.name}.`);
-    
-        const { data: refreshedUsers, error: fetchError } = await supabase.from('users').select('*');
-        if (refreshedUsers) {
-            setUsers(refreshedUsers as AuthenticatedUser[]);
-        } else if (fetchError) {
-            console.error("Fetch users after unassignment failed:", fetchError);
-            addNotification('Error de Sincronización', 'No se pudo refrescar la lista de usuarios.');
-        }
+        const updatedIds = (student.family_member_ids || []).filter(id => id !== familyId);
+        await updateStudentData({ ...student, family_member_ids: updatedIds });
+        addNotification('Desasignación Exitosa', `Se quitó a ${familyUser.name} del estudiante ${student.name}.`);
     };
+    
+    const handleUpdateStudentFamily = async (studentId: string, familyIds: string[] | null) => {
+        const student = students.find(s => s.id === studentId);
+        if (!student) {
+            addNotification('Error', 'No se pudo encontrar al estudiante para actualizar.');
+            return;
+        }
+    
+        await updateStudentData({ ...student, family_member_ids: familyIds || [] });
+        addNotification('Acudiente Actualizado', `Se actualizaron los acudientes para ${student.name}.`);
+    };
+
 
     const handleUpdateUserProfile = async (updatedProfileData: Partial<AuthenticatedUser>, newAvatarFile?: File) => {
         if (!currentUser) return;
@@ -475,7 +480,14 @@ const App: React.FC = () => {
             if (currentUser.role === 'Familia') {
                  return <FamilyDashboard user={currentUser} student={selectedStudent} onBack={studentBackHandler} onNavigate={handleNavigation}/>;
             }
-            return <StudentProfile student={selectedStudent} onBack={studentBackHandler} userRole={currentUser.role} onUpdateStudent={updateStudentData} allUsers={users}/>;
+            return <StudentProfile 
+                        student={selectedStudent} 
+                        onBack={studentBackHandler} 
+                        userRole={currentUser.role} 
+                        onUpdateStudent={updateStudentData} 
+                        allUsers={users}
+                        onUpdateStudentFamily={handleUpdateStudentFamily}
+                    />;
         }
         
         if (selectedFamily && currentUser.role === 'Director') {
@@ -513,13 +525,28 @@ const App: React.FC = () => {
                     />;
                 }
                 if (currentUser.role === 'Familia') {
+                    // Family users can now have multiple students, so we show a list to choose from.
+                    // This is a change from the single-student view.
+                    if (studentsForUser.length > 1) {
+                        return <StudentList 
+                            students={studentsForUser}
+                            allStudents={studentsForUser} // Only show their own students
+                            onSelectStudent={handleSelectStudent}
+                            user={currentUser}
+                            onAssignStudent={() => {}}
+                            onUnassignStudent={() => {}}
+                            onRegisterStudentClick={() => {}}
+                            initialFilter={initialStudentFilter}
+                            onClearInitialFilter={() => setInitialStudentFilter(null)}
+                        />;
+                    }
                     const familyStudent = studentsForUser[0];
                     if (familyStudent) {
                         return <FamilyDashboard user={currentUser} student={familyStudent} onBack={handleBack} onNavigate={handleNavigation}/>;
                     }
                     return <div className="p-8 text-center text-slate-500">No hay un estudiante asociado a esta cuenta familiar.</div>;
                 }
-                return <Dashboard students={studentsForUser} onSelectStudent={handleSelectStudent} />;
+                return <Dashboard students={studentsForUser} onSelectStudent={handleSelectStudent} onNavigateWithFilter={handleNavigationWithFilter} />;
 
             case 'students':
                 return <StudentList 
@@ -530,13 +557,15 @@ const App: React.FC = () => {
                     onAssignStudent={handleAddTeacherToStudent}
                     onUnassignStudent={handleRemoveTeacherFromStudent}
                     onRegisterStudentClick={() => setShowRegisterStudentModal(true)}
+                    initialFilter={initialStudentFilter}
+                    onClearInitialFilter={() => setInitialStudentFilter(null)}
                 />;
             case 'families':
                 return <FamilyManagement
                     allUsers={users}
                     allStudents={students}
                     onAssignStudentToFamily={handleAssignStudentToFamily}
-                    onUnassignStudentFromFamily={handleUnassignStudentFromFamily}
+                    onUnassignFamilyFromStudent={handleUnassignFamilyFromStudent}
                 />;
             case 'assistant':
                 return <ChatInterface 
@@ -559,7 +588,7 @@ const App: React.FC = () => {
                     }
                     return <div className="p-8 text-center text-slate-500">No hay un estudiante asociado a esta cuenta familiar.</div>;
                 }
-                return <Dashboard students={studentsForUser} onSelectStudent={handleSelectStudent} />;
+                return <Dashboard students={studentsForUser} onSelectStudent={handleSelectStudent} onNavigateWithFilter={handleNavigationWithFilter} />;
         }
     };
     
