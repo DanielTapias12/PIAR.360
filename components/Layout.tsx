@@ -80,7 +80,8 @@ const Layout: React.FC<LayoutProps> = ({ children, user, setView, currentView, n
             case 'Familia':
                  return (
                     <>
-                        <NavItem label="Resumen" icon={HomeIcon} isActive={currentView === 'dashboard'} onClick={() => setView('dashboard')} />
+                        <NavItem label="Panel Principal" icon={HomeIcon} isActive={currentView === 'dashboard'} onClick={() => setView('dashboard')} />
+                        <NavItem label="Asesor IA" icon={ChatBubbleOvalLeftEllipsisIcon} isActive={currentView === 'assistant'} onClick={() => setView('assistant')} />
                         {commonItems}
                     </>
                  );

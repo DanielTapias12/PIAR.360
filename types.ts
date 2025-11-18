@@ -89,4 +89,5 @@ export interface Notification {
     message: string;
     timestamp: string;
     read: boolean;
+    user_id: string;
 }

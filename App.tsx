@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useMemo, useEffect } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -60,7 +62,7 @@ const App: React.FC = () => {
         const fetchUserData = async () => {
             if (session?.user?.id) {
                 try {
-                    // Fetch current user's profile
+                    // Fetch current user's profile - this is a critical operation.
                     const { data: userProfile, error: profileError } = await supabase
                         .from('users')
                         .select('*')
@@ -68,23 +70,39 @@ const App: React.FC = () => {
                         .single();
                     
                     if (profileError) throw profileError;
+
                     if (userProfile) {
                         setCurrentUser({ ...userProfile, email: session.user.email! } as AuthenticatedUser);
                     } else {
-                         throw new Error("User profile not found in database.");
+                         // This can happen if the public.users table is not populated yet after signup.
+                         // Signing out is a safe way to handle this state.
+                         throw new Error("User profile not found in database. Signing out.");
                     }
+                } catch (error: any) {
+                    console.error("Error fetching critical user profile:", error.message || error);
+                    setCurrentUser(null);
+                    await supabase.auth.signOut();
+                    return; // Stop further execution if profile fails
+                }
 
+                // Fetch other non-critical data.
+                
+                // Fetch all users for directory
+                const { data: allUsers, error: usersError } = await supabase.from('users').select('*');
+                if(usersError) {
+                    console.error("Error fetching user directory:", usersError.message);
+                    setUsers([]);
+                } else {
+                    setUsers((allUsers as AuthenticatedUser[]) || []);
+                }
 
-                    // Fetch all users for directory
-                    const { data: allUsers, error: usersError } = await supabase.from('users').select('*');
-                    if(usersError) throw usersError;
-                    setUsers(allUsers as AuthenticatedUser[]);
-
-                    // Fetch students
-                    const { data: studentsData, error: studentsError } = await supabase.from('students').select('*').order('created_at', { ascending: false });
-                    if (studentsError) throw studentsError;
-                    
-                    // Sanitize student data to prevent crashes from null/non-array values
+                // Fetch students
+                const { data: studentsData, error: studentsError } = await supabase.from('students').select('*').order('created_at', { ascending: false });
+                if (studentsError) {
+                    console.error("Error fetching students:", studentsError.message);
+                    setStudents([]);
+                } else {
+                     // Sanitize student data to prevent crashes from null/non-array values
                     const processedStudents = (studentsData as any[] || []).map(student => ({
                         ...student,
                         photo_url: student.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name || '?')}&background=0ea5e9&color=fff`,
@@ -93,18 +111,20 @@ const App: React.FC = () => {
                         progress_entries: Array.isArray(student.progress_entries) ? student.progress_entries : [],
                         family_member_ids: Array.isArray(student.family_member_ids) ? student.family_member_ids : [],
                     }));
-
                     setStudents(processedStudents as Student[]);
+                }
 
-                    // Fetch notifications
-                    const { data: notificationsData, error: notificationsError } = await supabase.from('notifications').select('*').order('timestamp', { ascending: false }).limit(20);
-                    if (notificationsError) throw notificationsError;
+                // Fetch notifications for the current user
+                const { data: notificationsData, error: notificationsError } = await supabase
+                    .from('notifications')
+                    .select('*')
+                    .eq('user_id', session.user.id)
+                    .order('timestamp', { ascending: false }).limit(20);
+                if (notificationsError) {
+                    console.error("Error fetching notifications:", notificationsError.message);
+                    setNotifications([]);
+                } else {
                     setNotifications((notificationsData as Notification[]) || []);
-                } catch (error) {
-                    console.error("Error fetching user data:", error);
-                    setCurrentUser(null);
-                    // If profile load fails, sign out to prevent broken state
-                    await supabase.auth.signOut();
                 }
             } else {
                 // Clear data on logout
@@ -118,30 +138,43 @@ const App: React.FC = () => {
         fetchUserData();
     }, [session]);
     
-    const addNotification = async (title: string, message: string) => {
-        const newNotification = {
+    const addNotification = async (title: string, message: string, targetUserIds: string[]) => {
+        if (!currentUser || !targetUserIds || targetUserIds.length === 0) return;
+
+        const newNotifications = targetUserIds.map(userId => ({
             title,
             message,
             timestamp: new Date().toISOString(),
             read: false,
-        };
-        const { data, error } = await supabase.from('notifications').insert(newNotification).select();
+            user_id: userId,
+        }));
+        
+        const { data, error } = await supabase.from('notifications').insert(newNotifications).select();
+        
         if (error) {
             console.error("Failed to add notification:", error);
             return;
         }
-        if (data) {
-            setNotifications(prev => [data[0] as Notification, ...prev].slice(0, 20));
+
+        // Only add the notification to the current user's local state if they are one of the targets.
+        if (data && targetUserIds.includes(currentUser.id)) {
+            const userNotification = data.find(n => n.user_id === currentUser.id);
+            if (userNotification) {
+                setNotifications(prev => [userNotification as Notification, ...prev].slice(0, 20));
+            }
         }
     };
 
     const handleClearNotifications = async () => {
-        // In a real app with user-specific notifications, you'd add a filter like .eq('user_id', currentUser.id)
-        const { error } = await supabase.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        if (!currentUser) return;
+        const { error } = await supabase
+            .from('notifications')
+            .delete()
+            .eq('user_id', currentUser.id);
         
         if (error) {
             console.error("Failed to clear notifications:", error);
-            addNotification('Error', 'No se pudieron borrar las notificaciones.');
+            addNotification('Error', 'No se pudieron borrar las notificaciones.', [currentUser.id]);
         } else {
             setNotifications([]);
         }
@@ -198,6 +231,7 @@ const App: React.FC = () => {
     };
 
     const updateStudentData = async (updatedStudent: Student) => {
+        if (!currentUser) return;
         const {
           id,
           name,
@@ -233,7 +267,7 @@ const App: React.FC = () => {
         
         if (error) {
             console.error("Failed to update student:", error);
-            addNotification('Error de Sincronización', `No se pudo actualizar. Razón: ${error.message}`);
+            addNotification('Error de Sincronización', `No se pudo actualizar. Razón: ${error.message}`, [currentUser.id]);
             return;
         }
 
@@ -257,6 +291,7 @@ const App: React.FC = () => {
     };
 
     const handleAddProgressEntry = async (studentId: string, area: string, observation: string, author: string) => {
+        if (!currentUser) return false;
         const student = students.find(s => s.id === studentId);
         if (student) {
             const newProgressEntry: ProgressEntry = {
@@ -268,10 +303,10 @@ const App: React.FC = () => {
             };
             const updatedEntries = [newProgressEntry, ...student.progress_entries];
             await updateStudentData({ ...student, progress_entries: updatedEntries });
-            addNotification('Registro de Progreso', `Nueva observación añadida para ${student.name}.`);
+            addNotification('Registro de Progreso', `Nueva observación añadida para ${student.name}.`, [currentUser.id]);
             return true;
         }
-        addNotification('Error', 'No se pudo encontrar al estudiante para añadir la observación.');
+        addNotification('Error', 'No se pudo encontrar al estudiante para añadir la observación.', [currentUser.id]);
         return false;
     };
         
@@ -298,7 +333,7 @@ const App: React.FC = () => {
             }
         }
 
-        addNotification('Estrategia Asignada', `La estrategia "${strategy.title}" ha sido asignada.`);
+        addNotification('Estrategia Asignada', `La estrategia "${strategy.title}" ha sido asignada.`, [currentUser.id]);
     };
     
     const handleAddTeacherToStudent = async (studentId: string) => {
@@ -320,6 +355,7 @@ const App: React.FC = () => {
     };
 
     const handleRegisterStudent = async (newStudentData: NewStudentData) => {
+         if (!currentUser) return null;
          let studentToInsert: Omit<Student, 'id' | 'documents' | 'progress_entries'> & { documents: Document[], progress_entries: ProgressEntry[] } = {
             photo_url: `https://picsum.photos/seed/${newStudentData.name.split(' ').join('')}/200`,
             documents: [],
@@ -329,14 +365,14 @@ const App: React.FC = () => {
             ...newStudentData,
         };
 
-        if (currentUser && currentUser.role === 'Docente') {
+        if (currentUser.role === 'Docente') {
             studentToInsert.teachers = [currentUser.name];
         }
         
         const { data, error } = await supabase.from('students').insert(studentToInsert).select();
         if (error) {
             console.error("Failed to register student:", error);
-            addNotification('Error de Registro', `No se pudo registrar al estudiante.`);
+            addNotification('Error de Registro', `No se pudo registrar al estudiante.`, [currentUser.id]);
             return null;
         }
         if (data) {
@@ -356,6 +392,7 @@ const App: React.FC = () => {
     };
     
     const handleRegisterStudentAndNotify = async (newStudentData: NewStudentData) => {
+        if (!currentUser) return;
         const newStudent = await handleRegisterStudent(newStudentData);
         if (newStudent) {
             setShowRegisterStudentModal(false);
@@ -363,17 +400,18 @@ const App: React.FC = () => {
                 setNewlyRegisteredStudent(newStudent);
                 setShowAssignToFamilyModal(true);
             } else {
-                 addNotification('Estudiante Registrado', `¡Estudiante ${newStudent.name} registrado con éxito!`);
+                 addNotification('Estudiante Registrado', `¡Estudiante ${newStudent.name} registrado con éxito!`, [currentUser.id]);
             }
         }
     };
 
     const handleAssignStudentToFamily = async (familyId: string, studentId: string) => {
+        if (!currentUser) return;
         const familyUser = users.find(u => u.id === familyId);
         const student = students.find(s => s.id === studentId);
 
         if (!familyUser || !student) {
-            addNotification('Error de Asignación', `No se encontró la familia o el estudiante.`);
+            addNotification('Error de Asignación', `No se encontró la familia o el estudiante.`, [currentUser.id]);
             return;
         }
         
@@ -382,41 +420,50 @@ const App: React.FC = () => {
 
         const updatedIds = [...currentIds, familyId];
         await updateStudentData({ ...student, family_member_ids: updatedIds });
-        addNotification('Asignación Exitosa', `${student.name} asignado a ${familyUser.name}.`);
+        addNotification('Asignación Exitosa', `${student.name} asignado a ${familyUser.name}.`, [currentUser.id, familyId]);
     };
     
     const handleConfirmAssignmentAndNotify = async (familyUsername: string, studentId: string) => {
+        if (!currentUser || !newlyRegisteredStudent) return;
         const familyUser = users.find(u => u.username === familyUsername);
         if (familyUser) {
             await handleUpdateStudentFamily(studentId, [familyUser.id]);
-            addNotification('Asignación Exitosa', `${newlyRegisteredStudent?.name} asignado a ${familyUser.name}.`);
+            addNotification('Asignación Exitosa', `${newlyRegisteredStudent?.name} asignado a ${familyUser.name}.`, [currentUser.id, familyUser.id]);
         }
         setShowAssignToFamilyModal(false);
         setNewlyRegisteredStudent(null);
     };
 
     const handleUnassignFamilyFromStudent = async (familyId: string, studentId: string) => {
+        if (!currentUser) return;
         const student = students.find(s => s.id === studentId);
         const familyUser = users.find(u => u.id === familyId);
         if (!student || !familyUser) {
-            addNotification('Error de Desasignación', `No se pudo encontrar la familia o el estudiante.`);
+            addNotification('Error de Desasignación', `No se pudo encontrar la familia o el estudiante.`, [currentUser.id]);
             return;
         }
         
         const updatedIds = (student.family_member_ids || []).filter(id => id !== familyId);
         await updateStudentData({ ...student, family_member_ids: updatedIds });
-        addNotification('Desasignación Exitosa', `Se quitó a ${familyUser.name} del estudiante ${student.name}.`);
+        addNotification('Desasignación Exitosa', `Se quitó a ${familyUser.name} del estudiante ${student.name}.`, [currentUser.id, familyId]);
     };
     
     const handleUpdateStudentFamily = async (studentId: string, familyIds: string[] | null) => {
+        if (!currentUser) return;
         const student = students.find(s => s.id === studentId);
         if (!student) {
-            addNotification('Error', 'No se pudo encontrar al estudiante para actualizar.');
+            addNotification('Error', 'No se pudo encontrar al estudiante para actualizar.', [currentUser.id]);
             return;
         }
-    
+        
+        const oldFamilyIds = student.family_member_ids || [];
         await updateStudentData({ ...student, family_member_ids: familyIds || [] });
-        addNotification('Acudiente Actualizado', `Se actualizaron los acudientes para ${student.name}.`);
+
+        const newFamilyIds = familyIds || [];
+        const allInvolvedIds = [...new Set([...oldFamilyIds, ...newFamilyIds])];
+        const targetUserIds = [...new Set([currentUser.id, ...allInvolvedIds])];
+
+        addNotification('Acudiente Actualizado', `Se actualizaron los acudientes para ${student.name}.`, targetUserIds);
     };
 
 
@@ -435,7 +482,7 @@ const App: React.FC = () => {
             
             if (uploadError) {
                 console.error('Avatar upload error:', uploadError);
-                addNotification('Error', 'No se pudo subir la foto de perfil.');
+                addNotification('Error', 'No se pudo subir la foto de perfil.', [currentUser.id]);
                 return;
             }
 
@@ -461,7 +508,7 @@ const App: React.FC = () => {
         
         if (updateError) {
             console.error('Profile update error:', updateError);
-            addNotification('Error', 'No se pudo actualizar el perfil.');
+            addNotification('Error', 'No se pudo actualizar el perfil.', [currentUser.id]);
             return;
         }
 
@@ -474,15 +521,29 @@ const App: React.FC = () => {
 
     const renderContent = () => {
         if (!currentUser) return null;
-
-        if (selectedStudent) {
-            const studentBackHandler = () => setSelectedStudent(null);
-            if (currentUser.role === 'Familia') {
-                 return <FamilyDashboard user={currentUser} student={selectedStudent} onBack={studentBackHandler} onNavigate={handleNavigation}/>;
+        
+        // --- Role: Familia ---
+        if (currentUser.role === 'Familia') {
+            if (view === 'settings') {
+                return <ProfileSettings user={currentUser} onUpdateProfile={handleUpdateUserProfile} />;
             }
+            // The FamilyDashboard is the main entry point, and we pass the initial active tab
+            // based on the global view state, making sidebar navigation work seamlessly.
+            const initialTab = view === 'assistant' ? 'assistant' : 'summary';
+            return <FamilyDashboard
+                        user={currentUser}
+                        students={studentsForUser}
+                        onUpdateStudent={updateStudentData}
+                        onNavigate={handleNavigation}
+                        initialTab={initialTab}
+                    />;
+        }
+
+        // --- Roles: Director & Docente ---
+        if (selectedStudent) {
             return <StudentProfile 
                         student={selectedStudent} 
-                        onBack={studentBackHandler} 
+                        onBack={() => setSelectedStudent(null)} 
                         userRole={currentUser.role} 
                         onUpdateStudent={updateStudentData} 
                         allUsers={users}
@@ -511,7 +572,7 @@ const App: React.FC = () => {
         if (view === 'settings') {
              return <ProfileSettings user={currentUser} onUpdateProfile={handleUpdateUserProfile} />;
         }
-
+        
         switch (view) {
             case 'dashboard':
                 if (currentUser.role === 'Director') {
@@ -523,28 +584,6 @@ const App: React.FC = () => {
                         onSelectTeacher={handleSelectTeacher}
                         onSelectFamily={handleSelectFamily}
                     />;
-                }
-                if (currentUser.role === 'Familia') {
-                    // Family users can now have multiple students, so we show a list to choose from.
-                    // This is a change from the single-student view.
-                    if (studentsForUser.length > 1) {
-                        return <StudentList 
-                            students={studentsForUser}
-                            allStudents={studentsForUser} // Only show their own students
-                            onSelectStudent={handleSelectStudent}
-                            user={currentUser}
-                            onAssignStudent={() => {}}
-                            onUnassignStudent={() => {}}
-                            onRegisterStudentClick={() => {}}
-                            initialFilter={initialStudentFilter}
-                            onClearInitialFilter={() => setInitialStudentFilter(null)}
-                        />;
-                    }
-                    const familyStudent = studentsForUser[0];
-                    if (familyStudent) {
-                        return <FamilyDashboard user={currentUser} student={familyStudent} onBack={handleBack} onNavigate={handleNavigation}/>;
-                    }
-                    return <div className="p-8 text-center text-slate-500">No hay un estudiante asociado a esta cuenta familiar.</div>;
                 }
                 return <Dashboard students={studentsForUser} onSelectStudent={handleSelectStudent} onNavigateWithFilter={handleNavigationWithFilter} />;
 
@@ -578,17 +617,7 @@ const App: React.FC = () => {
             case 'settings':
                 return <ProfileSettings user={currentUser} onUpdateProfile={handleUpdateUserProfile} />;
             default:
-                if (currentUser.role === 'Director') {
-                     return <DirectorDashboard students={students} users={users} onSelectStudent={handleSelectStudent} onRegisterStudentClick={() => setShowRegisterStudentModal(true)} onSelectTeacher={handleSelectTeacher} onSelectFamily={handleSelectFamily} />;
-                }
-                 if (currentUser.role === 'Familia') {
-                    const familyStudent = studentsForUser[0];
-                    if (familyStudent) {
-                        return <FamilyDashboard user={currentUser} student={familyStudent} onBack={handleBack} onNavigate={handleNavigation}/>;
-                    }
-                    return <div className="p-8 text-center text-slate-500">No hay un estudiante asociado a esta cuenta familiar.</div>;
-                }
-                return <Dashboard students={studentsForUser} onSelectStudent={handleSelectStudent} onNavigateWithFilter={handleNavigationWithFilter} />;
+                 return <Dashboard students={studentsForUser} onSelectStudent={handleSelectStudent} onNavigateWithFilter={handleNavigationWithFilter} />;
         }
     };
     
@@ -614,12 +643,12 @@ const App: React.FC = () => {
                 onClose={() => setShowRegisterStudentModal(false)}
                 onSubmit={handleRegisterStudentAndNotify}
             />
-            {newlyRegisteredStudent && (
+            {newlyRegisteredStudent && currentUser && (
                 <AssignToFamilyModal
                     isOpen={showAssignToFamilyModal}
                     onClose={() => {
                         setShowAssignToFamilyModal(false);
-                        addNotification('Registro Exitoso', `¡Estudiante ${newlyRegisteredStudent.name} registrado! Puedes asignarlo a una familia más tarde.`);
+                        addNotification('Registro Exitoso', `¡Estudiante ${newlyRegisteredStudent.name} registrado! Puedes asignarlo a una familia más tarde.`, [currentUser.id]);
                         setNewlyRegisteredStudent(null);
                     }}
                     student={newlyRegisteredStudent}

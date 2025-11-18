@@ -1,5 +1,3 @@
-
-
 import React, { useState, useRef, useEffect } from 'react';
 import { getFamilyAssistantResponse } from '../services/geminiService';
 import { PaperAirplaneIcon, SparklesIcon } from './icons/Icons';
@@ -21,7 +19,6 @@ interface ChatBubbleProps {
     message: FamilyMessage;
 }
 
-// FIX: Explicitly typed as React.FC to solve type error with 'key' prop in lists.
 const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
     const isUser = message.sender === 'user';
     const bubbleClasses = isUser ? 'bg-emerald-600 text-white self-end' : 'bg-slate-200 text-slate-800 self-start';
@@ -33,14 +30,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
 };
 
 const FamilyAIAssistant: React.FC<FamilyAIAssistantProps> = ({ student }) => {
-    const [messages, setMessages] = useState<FamilyMessage[]>([
-        {
-            id: `msg_${Date.now()}`,
-            sender: 'ia',
-            text: `¡Hola! Soy tu asistente de IA. Puedo responder preguntas sobre el PIAR de ${student.name} y darte ideas para apoyarlo en casa. ¿En qué te puedo ayudar hoy?`,
-            timestamp: new Date().toISOString()
-        }
-    ]);
+    const [messages, setMessages] = useState<FamilyMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -50,6 +40,19 @@ const FamilyAIAssistant: React.FC<FamilyAIAssistantProps> = ({ student }) => {
     };
 
     useEffect(scrollToBottom, [messages]);
+    
+    useEffect(() => {
+        if (student) {
+             setMessages([{
+                id: `msg_${Date.now()}`,
+                sender: 'ia',
+                text: `¡Hola! Soy tu asistente de IA. Puedo ayudarte con dudas sobre el PIAR de ${student.name} o darte ideas para apoyarlo en casa. ¿Cómo puedo ayudarte?`,
+                timestamp: new Date().toISOString()
+            }]);
+        } else {
+            setMessages([]);
+        }
+    }, [student]);
 
     const handleSend = async () => {
         if (!input.trim() || isLoading) return;
@@ -92,6 +95,14 @@ const FamilyAIAssistant: React.FC<FamilyAIAssistantProps> = ({ student }) => {
             setIsLoading(false);
         }
     };
+    
+    if (!student) {
+        return (
+            <div className="p-6 text-center text-slate-500">
+                <p>Por favor, seleccione un estudiante para usar el asistente de IA.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6 flex flex-col h-[70vh]">
