@@ -6,6 +6,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PIAR.360 - Asistente Inteligente</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Import Plus Jakarta Sans for a modern, geometric look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+    </style>
 <script type="importmap">
 {
   "imports": {
@@ -21,7 +45,7 @@
 }
 </script>
 </head>
-<body class="bg-slate-50 antialiased">
+<body class="bg-slate-50 antialiased text-slate-900">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
 </body>

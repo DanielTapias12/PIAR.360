@@ -1,11 +1,10 @@
 
-
 import { GoogleGenAI, Type, GenerateContentResponse, FunctionDeclaration, Chat } from "@google/genai";
 import type { PiarData, Strategy, Student, AuthenticatedUser } from '../types';
 
 // Per guidelines, initialize with a named apiKey object.
 // The API key MUST be obtained exclusively from process.env.API_KEY.
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const piarSchema = {
     type: Type.OBJECT,
@@ -46,13 +45,11 @@ export const generatePiar = async (diagnosis: string, grade: string, age: number
     const prompt = `
         Basado en el Decreto 1421 de 2017 de Colombia, genera una propuesta de Plan Individualizado de Ajustes Razonables (PIAR) para un estudiante de ${grade} que tiene ${age} años.
         Diagnóstico y contexto proporcionado: "${diagnosis}".
-        La respuesta DEBE ser un objeto JSON que siga el esquema proporcionado. No incluyas "json" ni \`\`\` en la respuesta.
     `;
 
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
-            // Per guidelines, use gemini-2.5-pro for complex text tasks.
-            model: 'gemini-2.5-pro',
+            model: 'gemini-3-pro-preview',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -61,14 +58,14 @@ export const generatePiar = async (diagnosis: string, grade: string, age: number
             },
         });
 
-        const text = response.text.trim();
+        const text = response.text;
+        if (!text) return null;
+        
         const parsed = JSON.parse(text);
         
-        // Basic validation to ensure the response is in the expected format.
         if (parsed && parsed.resumen_diagnostico && parsed.ajustes_razonables) {
             return parsed as PiarData;
         }
-        console.warn("Parsed PIAR data is missing required fields.", parsed);
         return null;
     } catch (error) {
         console.error("Error generating PIAR with Gemini API:", error);
@@ -76,29 +73,44 @@ export const generatePiar = async (diagnosis: string, grade: string, age: number
     }
 };
 
-export const analyzePiar = async (diagnosis: string, piarContent: string): Promise<string | null> => {
+export const analyzePiar = async (diagnosis: string, piarContent: string): Promise<PiarData | null> => {
     const prompt = `
         Actúa como un experto en educación inclusiva bajo el Decreto 1421 de 2017 de Colombia.
-        El diagnóstico del estudiante es: "${diagnosis}".
-        A continuación, se presenta un PIAR existente para este estudiante:
+        Tienes dos tareas:
+        1. Analizar el contenido del documento PIAR subido.
+        2. REESTRUCTURAR y MEJORAR dicho contenido basándote en el diagnóstico del estudiante: "${diagnosis}".
+
+        Documento PIAR Original:
         ---
         ${piarContent}
         ---
-        Analiza el PIAR proporcionado y ofrece una lista de recomendaciones puntuales y accionables para mejorarlo.
-        Enfócate en la coherencia entre el diagnóstico y los ajustes propuestos, la claridad de las estrategias y si se alinea con la normativa.
-        Formatea tu respuesta en Markdown, usando títulos y listas para mayor claridad.
+
+        Instrucciones:
+        - Extrae la información relevante.
+        - Si las estrategias son vagas, hazlas más específicas (SMART).
+        - Organiza todo estrictamente en la estructura JSON solicitada para que pueda ser editada.
     `;
 
     try {
         const response = await ai.models.generateContent({
-            // Per guidelines, use gemini-2.5-pro for complex text tasks.
-            model: 'gemini-2.5-pro',
+            model: 'gemini-3-pro-preview',
             contents: prompt,
             config: {
-                temperature: 0.5,
+                responseMimeType: 'application/json',
+                responseSchema: piarSchema,
+                temperature: 0.4,
             },
         });
-        return response.text;
+        
+        const text = response.text;
+        if (!text) return null;
+        
+        const parsed = JSON.parse(text);
+
+        if (parsed && parsed.resumen_diagnostico && parsed.ajustes_razonables) {
+            return parsed as PiarData;
+        }
+        return null;
     } catch (error) {
         console.error("Error analyzing PIAR with Gemini API:", error);
         throw new Error("Failed to analyze PIAR with Gemini API.");
@@ -110,14 +122,13 @@ const strategySchema = {
     properties: {
         strategies: {
             type: Type.ARRAY,
-            description: "A list of inclusive educational strategies.",
             items: {
                 type: Type.OBJECT,
                 properties: {
-                    title: { type: Type.STRING, description: "A concise, descriptive title for the strategy." },
-                    description: { type: Type.STRING, description: "A detailed explanation of the strategy, how to implement it, and its benefits." },
-                    areas: { type: Type.ARRAY, items: { type: Type.STRING }, description: "List of applicable educational areas (e.g., Matemáticas, Habilidades Sociales)." },
-                    grades: { type: Type.ARRAY, items: { type: Type.STRING }, description: "List of applicable grade levels (e.g., Tercero, Cuarto)." }
+                    title: { type: Type.STRING },
+                    description: { type: Type.STRING },
+                    areas: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    grades: { type: Type.ARRAY, items: { type: Type.STRING } }
                 },
                 required: ['title', 'description', 'areas', 'grades']
             }
@@ -128,19 +139,14 @@ const strategySchema = {
 
 export const getInclusiveStrategies = async (query: string, area: string, grade: string): Promise<Strategy[]> => {
     const prompt = `
-        Actúa como un experto en pedagogía y educación inclusiva.
-        Busca estrategias educativas inclusivas basadas en la siguiente consulta.
-        Consulta del usuario: "${query}"
+        Busca estrategias educativas inclusivas para: "${query}"
         ${area !== 'todos' ? `Filtra por el área: "${area}".` : ''}
         ${grade !== 'todos' ? `Filtra por el grado: "${grade}".` : ''}
-        
-        Proporciona al menos 5 estrategias relevantes y variadas. Para cada una, incluye un título claro, una descripción detallada de su implementación, las áreas de aplicación y los grados recomendados.
-        La respuesta DEBE ser un objeto JSON que siga el esquema proporcionado. No incluyas "json" ni \`\`\` en la respuesta.
     `;
     
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-pro',
+            model: 'gemini-3-pro-preview',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -149,29 +155,75 @@ export const getInclusiveStrategies = async (query: string, area: string, grade:
             },
         });
 
-        const text = response.text.trim();
+        const text = response.text;
+        if (!text) return [];
+        
         const parsed = JSON.parse(text);
-
         if (parsed && parsed.strategies && Array.isArray(parsed.strategies)) {
             return parsed.strategies as Strategy[];
         }
-        console.warn("Parsed strategies data is not in the expected format.", parsed);
         return [];
 
     } catch (error) {
-        console.error("Error getting strategies from Gemini API:", error);
-        throw new Error("Failed to get strategies from Gemini API.");
+        console.error("Error getting strategies:", error);
+        throw new Error("Failed to get strategies.");
+    }
+};
+
+const suitabilitySchema = {
+    type: Type.OBJECT,
+    properties: {
+        isSuitable: { type: Type.BOOLEAN, description: "True si la estrategia es adecuada, False si contradice el diagnóstico." },
+        reason: { type: Type.STRING, description: "Explicación pedagógica y clínica de por qué es o no adecuada." },
+        riskLevel: { type: Type.STRING, description: "Nivel de riesgo de aplicar esta estrategia: 'Nulo', 'Bajo', 'Medio', 'Alto'." }
+    },
+    required: ['isSuitable', 'reason', 'riskLevel']
+};
+
+export const validateStrategySuitability = async (studentDiagnosis: string, strategy: Strategy): Promise<{ isSuitable: boolean; reason: string; riskLevel: string }> => {
+    const prompt = `
+        Actúa como un Coordinador Clínico y Pedagógico.
+        
+        Estudiante Diagnóstico: "${studentDiagnosis}"
+        Estrategia Propuesta: "${strategy.title}: ${strategy.description}"
+
+        TAREA: Evalúa si la estrategia es adecuada para este estudiante específico.
+        - ¿La estrategia aprovecha sus fortalezas o choca con sus limitaciones?
+        - ¿Existe algún riesgo contraproducente (ej. pedir lectura visual a un niño con baja visión, o tareas de memoria largas a un niño con TDAH sin apoyos)?
+
+        Responde estrictamente en JSON.
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-pro-preview',
+            contents: prompt,
+            config: {
+                responseMimeType: 'application/json',
+                responseSchema: suitabilitySchema,
+                temperature: 0.2, // Low temperature for strict logical analysis
+            }
+        });
+
+        const text = response.text;
+        if (!text) return { isSuitable: true, reason: "Análisis no disponible", riskLevel: "Desconocido" };
+        return JSON.parse(text);
+    } catch (error) {
+        console.error("Error validating strategy:", error);
+        return { isSuitable: true, reason: "Error de conexión con IA", riskLevel: "Desconocido" };
     }
 };
 
 export const getFamilyAssistantResponse = async (student: Student, messageHistory: {role: string, parts: {text: string}[]}[]): Promise<string> => {
-    const systemInstruction = `Eres un asistente de IA amigable y empático para familiares de estudiantes con necesidades educativas especiales. Estás ayudando a la familia de ${student.name}, quien está en ${student.grade} y tiene el siguiente diagnóstico: "${student.diagnosis}". Tu objetivo es proporcionar información clara, sencilla y útil sobre el PIAR y cómo apoyar al estudiante en casa. NO des consejos médicos ni diagnósticos. Si te preguntan algo fuera de tu alcance, redirige a los profesionales del colegio. Sé breve y directo en tus respuestas.`;
+    const systemInstruction = `Eres un asistente de IA para familiares de estudiantes con necesidades educativas. Estudiante: ${student.name}, Grado: ${student.grade}, Diagnóstico: "${student.diagnosis}". Sé breve y empático. No des consejos médicos.`;
 
     try {
+        // Ensure history is valid
+        const validHistory = messageHistory.slice(0, -1).filter(m => m.parts && m.parts.length > 0 && m.parts[0].text);
+        
         const chat = ai.chats.create({
-             // Per guidelines, use gemini-2.5-flash for basic text tasks/chat.
              model: 'gemini-2.5-flash',
-             history: messageHistory.slice(0, -1), // History is all but the last message
+             history: validHistory,
              config: {
                 systemInstruction: systemInstruction,
                 temperature: 0.8,
@@ -179,43 +231,51 @@ export const getFamilyAssistantResponse = async (student: Student, messageHistor
         });
 
         const lastMessage = messageHistory[messageHistory.length - 1];
-        const response = await chat.sendMessage({message: lastMessage.parts[0].text});
+        if (!lastMessage || !lastMessage.parts || !lastMessage.parts[0].text) {
+            return "Lo siento, no entendí el mensaje.";
+        }
 
-        return response.text;
+        const response = await chat.sendMessage({message: lastMessage.parts[0].text});
+        return response.text || "No pude generar una respuesta.";
 
     } catch (error) {
         console.error("Error in Family AI Assistant:", error);
-        throw new Error("Failed to get response from AI assistant.");
+        return "Lo siento, hubo un error al procesar tu solicitud.";
     }
 };
 
-// --- Pedagogical Agent with Function Calling ---
+// --- Pedagogical Agent ---
 
 const addStudentObservationFunction: FunctionDeclaration = {
     name: 'addStudentObservation',
-    description: "Añade una nueva observación o registro de progreso para un estudiante específico.",
+    description: "Añade una nueva observación o registro de progreso para un estudiante.",
     parameters: {
         type: Type.OBJECT,
         properties: {
-            studentName: {
-                type: Type.STRING,
-                description: "El nombre completo del estudiante al que se le añadirá la observación."
-            },
-            observation: {
-                type: Type.STRING,
-                description: "El texto de la observación o el registro de progreso."
-            },
-            area: {
-                type: Type.STRING,
-                description: "El área de desarrollo o académica a la que corresponde la observación (ej. 'Habilidades Sociales', 'Lectoescritura')."
-            }
+            studentName: { type: Type.STRING },
+            observation: { type: Type.STRING },
+            area: { type: Type.STRING }
         },
         required: ['studentName', 'observation', 'area']
     }
 };
 
+const assignStrategyToStudentFunction: FunctionDeclaration = {
+    name: 'assignStrategyToStudent',
+    description: "Asigna una estrategia pedagógica recomendada a un estudiante. Usa esto cuando el usuario confirme que quiere aplicar una estrategia.",
+    parameters: {
+        type: Type.OBJECT,
+        properties: {
+            studentName: { type: Type.STRING },
+            strategyTitle: { type: Type.STRING },
+            strategyDescription: { type: Type.STRING },
+            area: { type: Type.STRING }
+        },
+        required: ['studentName', 'strategyTitle', 'strategyDescription', 'area']
+    }
+};
+
 export const createPedagogicalAgentChatSession = (user: AuthenticatedUser, students: Student[]): Chat => {
-    // Create a concise summary of students for context
     const studentContext = students.map(s => ({
         id: s.id,
         name: s.name,
@@ -224,46 +284,35 @@ export const createPedagogicalAgentChatSession = (user: AuthenticatedUser, stude
     }));
 
     const systemInstruction = `
-        Eres un Agente Pedagógico Virtual experto en educación inclusiva, basado en la normativa colombiana (Decreto 1421).
-        Tu misión es asistir a un usuario con el rol de "${user.role}" llamado ${user.name}.
+        Eres un Agente Pedagógico Virtual experto en educación inclusiva (Decreto 1421).
+        Tu objetivo es ser un copiloto estratégico y riguroso.
+        Usuario: ${user.name} (${user.role}).
+        Estudiantes: ${JSON.stringify(studentContext)}
+
+        ESTRUCTURA DE RESPUESTA OBLIGATORIA:
+        Cuando sugieras estrategias, usa siempre este formato Markdown:
         
-        **Tus capacidades son:**
-        1.  **Sugerir Estrategias:** Ofrecer estrategias pedagógicas, de evaluación y de comunicación personalizadas para los estudiantes.
-        2.  **Resumir Información:** Sintetizar el progreso y los datos clave de uno o varios estudiantes.
-        3.  **Añadir Observaciones:** Puedes registrar el progreso de un estudiante. Para ello, DEBES usar la herramienta 'addStudentObservation'. Pide al usuario el área de la observación si no la proporciona.
-        4.  **Facilitar la Comunicación:** Ayudar a redactar mensajes claros y empáticos entre docentes y familias.
+        ### 1. Análisis del Caso
+        (Breve análisis de la necesidad vs diagnóstico).
 
-        **Contexto Actual:**
-        - Rol del Usuario: ${user.role}
-        - Nombre del Usuario: ${user.name}
-        - Estudiantes a cargo/visibles: ${JSON.stringify(studentContext, null, 2)}
+        ### 2. Estrategia Propuesta
+        (Nombre y detalle de la estrategia).
 
-        **Formato de Respuesta:**
-        - Utiliza **negritas** para resaltar conceptos clave, nombres de estudiantes o acciones importantes.
-        - Usa listas con guiones (-) para enumerar estrategias, puntos o pasos a seguir. Esto es crucial para la claridad.
-        - Usa encabezados simples (ej. ## Título) para estructurar respuestas que tengan múltiples secciones.
+        ### 3. Justificación Clínica/Pedagógica
+        (Por qué esto funciona específicamente para este diagnóstico y no otro).
 
-        **Ejemplo de formato ideal:**
-        ## Estrategias para un Estudiante
-        Basado en su progreso, aquí tienes algunas sugerencias:
-        - **Fomentar la lectura en voz alta:** Dedicar 5 minutos diarios a esta actividad puede mejorar su fluidez.
-        - **Utilizar material visual:** Apoyar las explicaciones matemáticas con gráficos o dibujos.
-
-        **Reglas Importantes:**
-        - Si el usuario quiere añadir una observación, usa la función 'addStudentObservation'. No respondas simplemente con texto.
-        - Basa tus respuestas en el contexto proporcionado.
-        - Si te piden información sobre un estudiante no listado, indica que no tienes acceso a sus datos.
-        - **NUNCA** inventes información. Si no tienes datos, dilo explícitamente.
-        - **NO** ofrezcas consejos médicos. Siempre redirige esas consultas a profesionales de la salud.
-        - Sé siempre profesional, empático y constructivo.
+        CAPACIDADES Y REGLAS:
+        1. **Filtro de Seguridad:** Antes de sugerir nada, verifica internamente si la estrategia es compatible con el diagnóstico. Si el usuario pide algo contraproducente, adivierte el riesgo.
+        2. **Acción Directa:** Si el usuario acepta una sugerencia (ej: "Sí, hazlo", "Asígnala"), EJECUTA la herramienta 'assignStrategyToStudent' inmediatamente.
+        3. **Gestión:** Puedes usar 'addStudentObservation' para tomar notas rápidas.
     `;
     
     return ai.chats.create({
-        model: 'gemini-2.5-pro', // A powerful model is needed for reliable function calling
+        model: 'gemini-3-pro-preview',
         config: {
             systemInstruction: systemInstruction,
-            temperature: 0.7,
-            tools: [{ functionDeclarations: [addStudentObservationFunction] }]
+            temperature: 0.5, // Lower temp for more structured adherence
+            tools: [{ functionDeclarations: [addStudentObservationFunction, assignStrategyToStudentFunction] }]
         }
     });
 };

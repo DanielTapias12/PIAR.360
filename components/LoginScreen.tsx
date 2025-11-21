@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { EyeIcon, EyeSlashIcon } from './icons/Icons';
@@ -24,7 +23,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToRegister }) => {
                 password: password,
             });
             if (error) throw error;
-            // The onAuthStateChange listener in App.tsx will handle the redirect
         } catch (error: any) {
             setError(error.error_description || error.message);
         } finally {
@@ -33,102 +31,101 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToRegister }) => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-            <div className="sm:mx-auto sm:w-full sm:max-w-md">
-                <h1 className="text-center text-4xl font-bold">
-                    <span className="text-slate-800">PIAR</span>
-                    <span className="text-sky-500">.360</span>
-                </h1>
-                <h2 className="mt-2 text-center text-lg text-slate-600">
-                    Inicia sesión en tu cuenta
-                </h2>
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden">
+            {/* Background Decoration */}
+            <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
+                 <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-sky-200/40 rounded-full blur-3xl"></div>
+                 <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-200/40 rounded-full blur-3xl"></div>
             </div>
 
-            <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-                <div className="bg-white py-8 px-4 shadow-xl rounded-2xl sm:px-10">
-                    <form className="space-y-6" onSubmit={handleLogin}>
-                        <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-slate-700">
-                                Correo Electrónico
-                            </label>
-                            <div className="mt-1">
-                                <input
-                                    id="email"
-                                    name="email"
-                                    type="email"
-                                    autoComplete="email"
-                                    required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="appearance-none block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
-                                />
-                            </div>
-                        </div>
+            <div className="max-w-md w-full bg-white/80 backdrop-blur-xl rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 p-8 relative z-10">
+                <div className="text-center mb-8">
+                    <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-sky-500 to-blue-600 rounded-xl shadow-lg shadow-sky-500/30 mb-4">
+                        <span className="text-white font-bold text-2xl">P</span>
+                    </div>
+                    <h1 className="text-3xl font-bold text-slate-800 tracking-tight">
+                        PIAR<span className="text-sky-500">.360</span>
+                    </h1>
+                    <p className="text-slate-500 mt-2 text-sm">
+                        Plataforma de Inclusión Inteligente
+                    </p>
+                </div>
 
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-slate-700">
-                                Contraseña
-                            </label>
-                            <div className="mt-1 relative">
-                                <input
-                                    id="password"
-                                    name="password"
-                                    type={showPassword ? 'text' : 'password'}
-                                    autoComplete="current-password"
-                                    required
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="appearance-none block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm pr-10"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5"
-                                    aria-label="Toggle password visibility"
-                                >
-                                    {showPassword ? (
-                                        <EyeSlashIcon className="h-5 w-5 text-slate-500" />
-                                    ) : (
-                                        <EyeIcon className="h-5 w-5 text-slate-500" />
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-                        
-                        {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-
-                        <div>
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 disabled:bg-slate-400"
-                            >
-                                {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-                            </button>
-                        </div>
-                    </form>
-
-                    <div className="mt-6">
+                <form className="space-y-5" onSubmit={handleLogin}>
+                    <div>
+                        <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">
+                            Correo Electrónico
+                        </label>
                         <div className="relative">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-slate-300" />
-                            </div>
-                            <div className="relative flex justify-center text-sm">
-                                <span className="px-2 bg-white text-slate-500">
-                                    ¿No tienes una cuenta?
-                                </span>
-                            </div>
+                            <input
+                                id="email"
+                                name="email"
+                                type="email"
+                                autoComplete="email"
+                                required
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                                placeholder="nombre@ejemplo.com"
+                            />
                         </div>
+                    </div>
 
-                        <div className="mt-6">
+                    <div>
+                        <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1.5">
+                            Contraseña
+                        </label>
+                        <div className="relative">
+                            <input
+                                id="password"
+                                name="password"
+                                type={showPassword ? 'text' : 'password'}
+                                autoComplete="current-password"
+                                required
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all pr-12"
+                                placeholder="••••••••"
+                            />
                             <button
-                                onClick={onSwitchToRegister}
-                                className="w-full flex justify-center py-2 px-4 border border-slate-300 rounded-md shadow-sm bg-white text-sm font-medium text-slate-700 hover:bg-slate-50"
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
                             >
-                                Crea una cuenta nueva
+                                {showPassword ? (
+                                    <EyeSlashIcon className="h-5 w-5" />
+                                ) : (
+                                    <EyeIcon className="h-5 w-5" />
+                                )}
                             </button>
                         </div>
                     </div>
+                    
+                    {error && (
+                        <div className="p-3 rounded-lg bg-red-50 border border-red-100 text-sm text-red-600 text-center">
+                            {error}
+                        </div>
+                    )}
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg shadow-sky-500/20 text-sm font-bold text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 disabled:opacity-70 transition-all transform active:scale-[0.98]"
+                    >
+                        {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+                    </button>
+                </form>
+
+                <div className="mt-8 text-center">
+                    <p className="text-sm text-slate-500">
+                        ¿No tienes cuenta?{' '}
+                        <button
+                            onClick={onSwitchToRegister}
+                            className="font-semibold text-sky-600 hover:text-sky-500 hover:underline transition-colors"
+                        >
+                            Regístrate aquí
+                        </button>
+                    </p>
                 </div>
             </div>
         </div>

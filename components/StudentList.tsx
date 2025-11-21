@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { SearchIcon, UserPlusIcon, XMarkIcon, CheckCircleIcon, UserMinusIcon, UserCircleIcon } from './icons/Icons';
 import type { AuthenticatedUser, Student } from '../types';
@@ -14,60 +13,76 @@ interface StudentCardProps {
 }
 
 const StudentCard: React.FC<StudentCardProps> = ({ student, onSelect, user, onAssign, onUnassign, showAssignControls }) => {
-    const riskColorMap = {
-        bajo: 'bg-green-100 text-green-800',
-        medio: 'bg-yellow-100 text-yellow-800',
-        alto: 'bg-red-100 text-red-800',
+    const riskConfig = {
+        bajo: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' },
+        medio: { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200' },
+        alto: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200' },
     };
+    
+    const config = riskConfig[student.risk_level] || riskConfig.bajo;
     const isAssignedToMe = student.teachers && student.teachers.includes(user.name);
 
     return (
-        <div className="bg-white rounded-xl shadow-md p-4 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ease-in-out space-y-3">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ease-out group h-full">
             <div 
-                className="flex items-center space-x-4 cursor-pointer"
+                className="flex flex-col items-center text-center cursor-pointer mb-4"
                 onClick={() => onSelect(student)}
             >
-                <img src={student.photo_url} alt={student.name} className="w-16 h-16 rounded-full" />
-                <div className="flex-1">
-                    <p className="font-semibold text-slate-800 flex items-center gap-2">
-                        <UserCircleIcon className="w-5 h-5 text-slate-400" />
-                        {student.name}
-                    </p>
-                    <p className="text-sm text-slate-500">{student.grade}</p>
+                <div className="relative mb-3">
+                     <img src={student.photo_url} alt={student.name} className="w-20 h-20 rounded-full object-cover border-4 border-slate-50 shadow-md group-hover:border-sky-50 transition-colors" />
+                     <span className={`absolute bottom-0 right-0 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-full border ${config.bg} ${config.text} ${config.border}`}>
+                        {student.risk_level}
+                     </span>
                 </div>
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${riskColorMap[student.risk_level]}`}>
-                    Riesgo {student.risk_level}
-                </span>
+                <h3 className="font-bold text-slate-800 text-lg group-hover:text-sky-600 transition-colors line-clamp-1">
+                    {student.name}
+                </h3>
+                <p className="text-sm text-slate-500 font-medium">{student.grade}</p>
             </div>
              
-            {showAssignControls && student.teachers && student.teachers.length > 0 && (
-                <p className="text-xs text-slate-500 border-t border-slate-100 pt-2 mt-auto">Docentes: {student.teachers.join(', ')}</p>
-            )}
-            {showAssignControls && (!student.teachers || student.teachers.length === 0) && (
-                 <p className="text-xs text-slate-400 font-style: italic border-t border-slate-100 pt-2 mt-auto">Estudiante sin asignar</p>
-            )}
+            <div className="mt-auto space-y-3">
+                {showAssignControls ? (
+                    <div className="min-h-[20px]">
+                        {student.teachers && student.teachers.length > 0 ? (
+                            <p className="text-xs text-slate-500 text-center bg-slate-50 py-1 px-2 rounded-md truncate">
+                                <span className="font-medium">Docente:</span> {student.teachers[0]} {student.teachers.length > 1 && `+${student.teachers.length - 1}`}
+                            </p>
+                        ) : (
+                             <p className="text-xs text-slate-400 italic text-center py-1">Sin docente asignado</p>
+                        )}
+                    </div>
+                ) : <div className="h-1"></div>}
 
-            {showAssignControls && user.role === 'Docente' && (
-                <div className="pt-2 border-t border-slate-100">
-                    {isAssignedToMe ? (
-                         <button
-                            onClick={() => onUnassign(student.id)}
-                            className="w-full flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-amber-500 hover:bg-amber-600 transition-colors"
-                        >
-                            <UserMinusIcon className="w-4 h-4 mr-2" />
-                            Quitar mi asignación
-                        </button>
-                    ) : (
-                        <button
-                            onClick={() => onAssign(student.id)}
-                            className="w-full flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-sky-500 hover:bg-sky-600 transition-colors"
-                        >
-                            <UserPlusIcon className="w-4 h-4 mr-2" />
-                            Asignarme
-                        </button>
-                    )}
-                </div>
-            )}
+                {showAssignControls && user.role === 'Docente' && (
+                    <div className="pt-2 border-t border-slate-100">
+                        {isAssignedToMe ? (
+                             <button
+                                onClick={() => onUnassign(student.id)}
+                                className="w-full flex items-center justify-center px-3 py-2 border border-amber-200 text-xs font-bold rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors"
+                            >
+                                <UserMinusIcon className="w-3.5 h-3.5 mr-1.5" />
+                                Quitar
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => onAssign(student.id)}
+                                className="w-full flex items-center justify-center px-3 py-2 border border-sky-200 text-xs font-bold rounded-lg text-sky-700 bg-sky-50 hover:bg-sky-100 transition-colors"
+                            >
+                                <UserPlusIcon className="w-3.5 h-3.5 mr-1.5" />
+                                Asignarme
+                            </button>
+                        )}
+                    </div>
+                )}
+                {!showAssignControls && (
+                    <button 
+                        onClick={() => onSelect(student)}
+                        className="w-full py-2 text-xs font-bold text-sky-600 bg-sky-50 rounded-lg hover:bg-sky-100 transition-colors"
+                    >
+                        Ver Perfil
+                    </button>
+                )}
+            </div>
         </div>
     );
 };
@@ -93,8 +108,10 @@ interface FilterButtonProps {
 const FilterButton: React.FC<FilterButtonProps> = ({ label, isActive, onClick }) => (
     <button
         onClick={onClick}
-        className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
-            isActive ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+        className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${
+            isActive 
+            ? 'bg-sky-600 text-white shadow-md shadow-sky-200 transform scale-105' 
+            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:border-slate-300'
         }`}
     >
         {label}
@@ -111,7 +128,6 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
 
     useEffect(() => {
         if (initialFilter) {
-            // Reset filters first to not compound them
             setRiskFilter('all');
             setPiarFilter('all');
             setGradeFilter('all');
@@ -127,20 +143,19 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
     }, [initialFilter, onClearInitialFilter]);
     
     const studentsToDisplay = viewMode === 'all' ? allStudents : students;
-    
     const availableGrades = useMemo(() => [...new Set(allStudents.map(s => s.grade))].sort(), [allStudents]);
     
     const riskLevels: { value: 'all' | 'bajo' | 'medio' | 'alto'; label: string }[] = [
-        { value: 'all', label: 'Todo Riesgo' },
-        { value: 'bajo', label: 'Bajo' },
-        { value: 'medio', label: 'Medio' },
-        { value: 'alto', label: 'Alto' }
+        { value: 'all', label: 'Todos' },
+        { value: 'bajo', label: 'Riesgo Bajo' },
+        { value: 'medio', label: 'Riesgo Medio' },
+        { value: 'alto', label: 'Riesgo Alto' }
     ];
 
     const piarStatuses: { value: 'all' | 'completed' | 'pending'; label: string }[] = [
         { value: 'all', label: 'Todos' },
-        { value: 'completed', label: 'Completados' },
-        { value: 'pending', label: 'Pendientes' }
+        { value: 'completed', label: 'PIAR Listo' },
+        { value: 'pending', label: 'Pendiente' }
     ];
 
     const filteredStudents = useMemo(() => studentsToDisplay.filter(student => {
@@ -155,12 +170,14 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
 
     const ModeButton = ({ label, targetMode }: { label: string; targetMode: 'mine' | 'all' }) => {
         const isActive = viewMode === targetMode;
-        const activeClasses = "border-sky-500 text-sky-600";
-        const inactiveClasses = "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300";
         return (
             <button
                 onClick={() => setViewMode(targetMode)}
-                className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${isActive ? activeClasses : inactiveClasses}`}
+                className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                    isActive 
+                    ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                }`}
             >
                 {label}
             </button>
@@ -168,23 +185,14 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
     };
 
     return (
-        <div className="p-8">
-            <div className="flex flex-col md:flex-row justify-between items-start mb-4 gap-4">
+        <div className="space-y-6 pb-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-800">Estudiantes</h1>
-                    <p className="text-slate-500 mt-1">Gestiona los perfiles y PIAR de tus estudiantes.</p>
+                    <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Directorio de Estudiantes</h1>
+                    <p className="text-slate-500 mt-1">Gestiona y monitorea el progreso de cada alumno.</p>
                 </div>
-                 <div className="flex items-center gap-4">
-                    {user.role === 'Docente' && (
-                        <button 
-                            onClick={onRegisterStudentClick}
-                            className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-sky-500 hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
-                        >
-                            <UserPlusIcon className="w-5 h-5 mr-2 -ml-1"/>
-                            Registrar Estudiante
-                        </button>
-                    )}
-                     <div className="relative w-full sm:w-auto sm:max-w-xs flex-grow">
+                 <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                    <div className="relative w-full sm:w-64">
                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <SearchIcon className="w-5 h-5 text-slate-400" />
                         </div>
@@ -193,50 +201,50 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
                             placeholder="Buscar estudiante..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border bg-white border-slate-200 rounded-lg focus:ring-sky-500 focus:border-sky-500 transition"
+                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition shadow-sm"
                         />
                     </div>
+                    {user.role === 'Docente' && (
+                        <button 
+                            onClick={onRegisterStudentClick}
+                            className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-bold rounded-xl shadow-md shadow-sky-500/20 text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-transform active:scale-95 whitespace-nowrap"
+                        >
+                            <UserPlusIcon className="w-5 h-5 mr-2"/>
+                            Nuevo Estudiante
+                        </button>
+                    )}
                 </div>
             </div>
 
-            <div className="flex flex-col lg:flex-row items-center gap-x-6 gap-y-4 mb-6 p-3 bg-slate-100 rounded-xl">
-                <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium text-slate-700 shrink-0">Grado:</span>
-                    <div className="flex items-center bg-slate-200/70 rounded-lg p-1 flex-wrap gap-1">
-                        <FilterButton label="Todos" isActive={gradeFilter === 'all'} onClick={() => setGradeFilter('all')} />
-                        {availableGrades.map(g => (
+            {user.role === 'Docente' && (
+                <div className="bg-slate-100/50 p-1 rounded-xl inline-flex flex-col sm:flex-row w-full md:w-auto border border-slate-200/50 gap-1 sm:gap-0">
+                   <ModeButton label="Mis Estudiantes" targetMode="mine" />
+                   <ModeButton label="Todos los Estudiantes" targetMode="all" />
+                </div>
+            )}
+
+            <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2 mb-1 sm:mb-0">Filtros:</span>
+                    <div className="flex flex-wrap gap-2 overflow-x-auto pb-1">
+                         <FilterButton label="Todos los Grados" isActive={gradeFilter === 'all'} onClick={() => setGradeFilter('all')} />
+                         {availableGrades.map(g => (
                             <FilterButton key={g} label={g} isActive={gradeFilter === g} onClick={() => setGradeFilter(g)} />
                         ))}
                     </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium text-slate-700 shrink-0">Riesgo:</span>
-                    <div className="flex items-center bg-slate-200/70 rounded-lg p-1 flex-wrap gap-1">
-                        {riskLevels.map(level => (
-                            <FilterButton key={level.value} label={level.label} isActive={riskFilter === level.value} onClick={() => setRiskFilter(level.value)} />
-                        ))}
-                    </div>
-                </div>
-                 <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium text-slate-700 shrink-0">PIAR:</span>
-                    <div className="flex items-center bg-slate-200/70 rounded-lg p-1 flex-wrap gap-1">
-                        {piarStatuses.map(status => (
-                            <FilterButton key={status.value} label={status.label} isActive={piarFilter === status.value} onClick={() => setPiarFilter(status.value)} />
-                        ))}
-                    </div>
+                 <div className="flex flex-wrap gap-2 sm:pl-16">
+                    {riskLevels.map(level => (
+                        <FilterButton key={level.value} label={level.label} isActive={riskFilter === level.value} onClick={() => setRiskFilter(level.value)} />
+                    ))}
+                     <div className="w-px h-6 bg-slate-300 mx-2 hidden sm:block"></div>
+                    {piarStatuses.map(status => (
+                        <FilterButton key={status.value} label={status.label} isActive={piarFilter === status.value} onClick={() => setPiarFilter(status.value)} />
+                    ))}
                 </div>
             </div>
             
-             {user.role === 'Docente' && (
-                <div className="mb-6 border-b border-slate-200">
-                    <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-                        <ModeButton label="Mis Estudiantes" targetMode="mine" />
-                        <ModeButton label="Directorio Institucional" targetMode="all" />
-                    </nav>
-                </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-6">
                 {filteredStudents.map(student => (
                     <StudentCard 
                         key={student.id} 
@@ -250,8 +258,15 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
                 ))}
             </div>
              {filteredStudents.length === 0 && (
-                <div className="col-span-full text-center py-16 bg-white rounded-xl shadow-sm">
-                    <p className="text-slate-500">No se encontraron estudiantes que coincidan con los filtros seleccionados.</p>
+                <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-sm border border-slate-100 border-dashed">
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                        <SearchIcon className="w-8 h-8 text-slate-300" />
+                    </div>
+                    <h3 className="text-lg font-medium text-slate-900">No se encontraron resultados</h3>
+                    <p className="text-slate-500 mt-1">Intenta ajustar los filtros o tu búsqueda.</p>
+                    <button onClick={() => {setSearchTerm(''); setGradeFilter('all'); setRiskFilter('all'); setPiarFilter('all');}} className="mt-4 text-sky-600 hover:text-sky-700 font-medium text-sm">
+                        Limpiar todos los filtros
+                    </button>
                 </div>
             )}
         </div>

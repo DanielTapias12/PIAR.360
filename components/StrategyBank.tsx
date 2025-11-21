@@ -1,8 +1,7 @@
 
-
 import React, { useState } from 'react';
-import { getInclusiveStrategies } from '../services/geminiService';
-import { SearchIcon, LightbulbIcon, XMarkIcon, AcademicCapIcon, CheckCircleIcon, ChevronDownIcon } from './icons/Icons';
+import { getInclusiveStrategies, validateStrategySuitability } from '../services/geminiService';
+import { SearchIcon, LightbulbIcon, XMarkIcon, AcademicCapIcon, CheckCircleIcon, ChevronDownIcon, AlertIcon } from './icons/Icons';
 import type { Student, Strategy } from '../types';
 
 const LoadingSpinner = () => (
@@ -19,17 +18,20 @@ const AssignStrategyModal = ({
     onClose,
     students,
     onConfirm,
-    strategyTitle,
+    strategy,
 } : {
     isOpen: boolean;
     onClose: () => void;
     students: Student[];
     onConfirm: (studentIds: string[]) => void;
-    strategyTitle: string;
+    strategy: Strategy | null;
 }) => {
     const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+    const [isValidating, setIsValidating] = useState(false);
+    const [validationWarnings, setValidationWarnings] = useState<{studentName: string, reason: string}[]>([]);
+    const [showWarnings, setShowWarnings] = useState(false);
 
-    if (!isOpen) return null;
+    if (!isOpen || !strategy) return null;
 
     const handleStudentSelect = (studentId: string) => {
         setSelectedStudentIds(prev =>
@@ -37,59 +39,148 @@ const AssignStrategyModal = ({
                 ? prev.filter(id => id !== studentId)
                 : [...prev, studentId]
         );
+        // Reset warnings when selection changes to force re-validation
+        setValidationWarnings([]);
+        setShowWarnings(false);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handlePreSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (selectedStudentIds.length > 0) {
+        if (selectedStudentIds.length === 0) return;
+
+        // If we already showed warnings and user clicks again, we confirm (override).
+        if (showWarnings) {
             onConfirm(selectedStudentIds);
+            resetState();
+            return;
+        }
+
+        setIsValidating(true);
+        const warnings: {studentName: string, reason: string}[] = [];
+
+        // Validate suitability for each selected student
+        for (const studentId of selectedStudentIds) {
+            const student = students.find(s => s.id === studentId);
+            if (student) {
+                const validation = await validateStrategySuitability(student.diagnosis, strategy);
+                if (!validation.isSuitable) {
+                    warnings.push({
+                        studentName: student.name,
+                        reason: validation.reason
+                    });
+                }
+            }
+        }
+
+        setIsValidating(false);
+
+        if (warnings.length > 0) {
+            setValidationWarnings(warnings);
+            setShowWarnings(true);
+        } else {
+            // No warnings, proceed immediately
+            onConfirm(selectedStudentIds);
+            resetState();
         }
     };
 
+    const resetState = () => {
+        setSelectedStudentIds([]);
+        setValidationWarnings([]);
+        setShowWarnings(false);
+        setIsValidating(false);
+    };
+
+    const handleClose = () => {
+        resetState();
+        onClose();
+    }
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
-            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md m-4">
+            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md m-4 max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-lg font-bold text-slate-800">Asignar Estrategia</h2>
-                    <button onClick={onClose} className="p-1 rounded-full text-slate-400 hover:bg-slate-200">
+                    <button onClick={handleClose} className="p-1 rounded-full text-slate-400 hover:bg-slate-200">
                         <XMarkIcon className="w-6 h-6" />
                     </button>
                 </div>
-                <p className="text-sm text-slate-600 mb-2">
-                    Estás asignando la estrategia: <span className="font-semibold text-sky-700">{strategyTitle}</span>
+                <p className="text-sm text-slate-600 mb-4">
+                    Estrategia: <span className="font-semibold text-sky-700">{strategy.title}</span>
                 </p>
 
-                <form onSubmit={handleSubmit}>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Selecciona uno o más estudiantes:
-                    </label>
-                    <div className="max-h-60 overflow-y-auto border border-slate-200 rounded-md p-2 space-y-1 bg-slate-50">
-                        {students.length > 0 ? (
-                            students.map(s => (
-                                <label key={s.id} htmlFor={`student-${s.id}`} className="flex items-center p-2 rounded-md hover:bg-slate-100 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        id={`student-${s.id}`}
-                                        checked={selectedStudentIds.includes(s.id)}
-                                        onChange={() => handleStudentSelect(s.id)}
-                                        className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
-                                    />
-                                    <span className="ml-3 text-sm text-slate-700">{s.name}</span>
-                                </label>
-                            ))
-                        ) : (
-                            <p className="text-sm text-slate-500 p-4 text-center">No tienes estudiantes asignados.</p>
-                        )}
+                {!showWarnings ? (
+                    <form onSubmit={handlePreSubmit}>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                            Selecciona los estudiantes:
+                        </label>
+                        <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-md p-2 space-y-1 bg-slate-50 mb-4">
+                            {students.length > 0 ? (
+                                students.map(s => (
+                                    <label key={s.id} htmlFor={`student-${s.id}`} className="flex items-center p-2 rounded-md hover:bg-slate-100 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            id={`student-${s.id}`}
+                                            checked={selectedStudentIds.includes(s.id)}
+                                            onChange={() => handleStudentSelect(s.id)}
+                                            className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                                        />
+                                        <span className="ml-3 text-sm text-slate-700">{s.name}</span>
+                                    </label>
+                                ))
+                            ) : (
+                                <p className="text-sm text-slate-500 p-4 text-center">No tienes estudiantes asignados.</p>
+                            )}
+                        </div>
+                        
+                        <div className="flex items-center justify-between mt-6">
+                             {isValidating ? (
+                                <span className="text-sm text-sky-600 flex items-center">
+                                    <svg className="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                    Validando compatibilidad...
+                                </span>
+                            ) : <span></span>}
+                            <div className="flex gap-3">
+                                <button type="button" onClick={handleClose} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50">
+                                    Cancelar
+                                </button>
+                                <button type="submit" disabled={selectedStudentIds.length === 0 || isValidating} className="px-4 py-2 text-sm font-medium text-white bg-sky-600 border border-transparent rounded-md shadow-sm hover:bg-sky-700 disabled:bg-slate-400">
+                                    Confirmar
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                ) : (
+                    <div className="animate-fade-in">
+                        <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg mb-4">
+                            <div className="flex items-start">
+                                <AlertIcon className="w-5 h-5 text-amber-600 mt-0.5 mr-2" />
+                                <div>
+                                    <h3 className="text-sm font-bold text-amber-800">Alerta de Incompatibilidad</h3>
+                                    <p className="text-xs text-amber-700 mt-1">
+                                        La IA ha detectado que esta estrategia podría no ser adecuada para los siguientes estudiantes según su diagnóstico:
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto space-y-3 mb-6">
+                            {validationWarnings.map((w, idx) => (
+                                <div key={idx} className="p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
+                                    <p className="font-bold text-slate-800 text-sm">{w.studentName}</p>
+                                    <p className="text-xs text-red-600 mt-1">{w.reason}</p>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
+                            <button type="button" onClick={() => setShowWarnings(false)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50">
+                                Volver
+                            </button>
+                            <button type="button" onClick={() => { onConfirm(selectedStudentIds); handleClose(); }} className="px-4 py-2 text-sm font-bold text-amber-700 bg-amber-100 border border-transparent rounded-md hover:bg-amber-200">
+                                Asignar de todos modos
+                            </button>
+                        </div>
                     </div>
-                    <div className="mt-6 flex justify-end gap-3">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50">
-                            Cancelar
-                        </button>
-                        <button type="submit" disabled={selectedStudentIds.length === 0} className="px-4 py-2 text-sm font-medium text-white bg-sky-600 border border-transparent rounded-md shadow-sm hover:bg-sky-700 disabled:bg-slate-400">
-                            Confirmar Asignación
-                        </button>
-                    </div>
-                </form>
+                )}
             </div>
         </div>
     );
@@ -226,7 +317,7 @@ const StrategyBank: React.FC<StrategyBankProps> = ({ students, onAssignStrategy 
                 onClose={() => setIsModalOpen(false)}
                 students={students}
                 onConfirm={handleConfirmAssignment}
-                strategyTitle={selectedStrategy?.title || ''}
+                strategy={selectedStrategy}
             />
 
             <form onSubmit={handleSearch} className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8">
