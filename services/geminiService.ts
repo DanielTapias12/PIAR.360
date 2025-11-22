@@ -4,7 +4,7 @@ import type { PiarData, Strategy, Student, AuthenticatedUser } from '../types';
 
 // Per guidelines, initialize with a named apiKey object.
 // The API key MUST be obtained exclusively from process.env.API_KEY.
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const piarSchema = {
     type: Type.OBJECT,
@@ -50,8 +50,8 @@ export const generatePiar = async (diagnosis: string, grade: string, age: number
 
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
-            // Per guidelines, use gemini-3-pro-preview for complex text tasks.
-            model: 'gemini-3-pro-preview',
+            // Switched to Gemini 2.5 Flash for better speed and efficiency.
+            model: 'gemini-2.5-flash',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -98,8 +98,8 @@ export const analyzePiar = async (diagnosis: string, piarContent: string): Promi
 
     try {
         const response = await ai.models.generateContent({
-            // Using Gemini 3 Pro for superior reasoning and structuring capabilities
-            model: 'gemini-3-pro-preview',
+            // Switched to Gemini 2.5 Flash for better speed and efficiency.
+            model: 'gemini-2.5-flash',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -156,7 +156,8 @@ export const getInclusiveStrategies = async (query: string, area: string, grade:
     
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-3-pro-preview',
+            // Switched to Gemini 2.5 Flash for better speed and efficiency.
+            model: 'gemini-2.5-flash',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -185,7 +186,7 @@ export const getFamilyAssistantResponse = async (student: Student, messageHistor
 
     try {
         const chat = ai.chats.create({
-             // Per guidelines, use gemini-2.5-flash for basic text tasks/chat.
+             // Already using gemini-2.5-flash, which is correct.
              model: 'gemini-2.5-flash',
              history: messageHistory.slice(0, -1), // History is all but the last message
              config: {
@@ -275,7 +276,8 @@ export const createPedagogicalAgentChatSession = (user: AuthenticatedUser, stude
     `;
     
     return ai.chats.create({
-        model: 'gemini-3-pro-preview', // A powerful model is needed for reliable function calling
+        // Switched to Gemini 2.5 Flash for better speed and efficiency.
+        model: 'gemini-2.5-flash',
         config: {
             systemInstruction: systemInstruction,
             temperature: 0.7,
