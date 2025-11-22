@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { SearchIcon, UserPlusIcon, XMarkIcon, CheckCircleIcon, UserMinusIcon, UserCircleIcon } from './icons/Icons';
 import type { AuthenticatedUser, Student } from '../types';
@@ -207,7 +206,7 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
                     {user.role === 'Docente' && (
                         <button 
                             onClick={onRegisterStudentClick}
-                            className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-bold rounded-xl shadow-md shadow-sky-500/20 text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-transform active:scale-95 whitespace-nowrap"
+                            className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-bold rounded-xl shadow-md shadow-sky-500/20 text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-transform active:scale-95"
                         >
                             <UserPlusIcon className="w-5 h-5 mr-2"/>
                             Nuevo Estudiante
@@ -217,23 +216,23 @@ const StudentList: React.FC<StudentListProps> = ({ students, allStudents, onSele
             </div>
 
             {user.role === 'Docente' && (
-                <div className="bg-slate-100/50 p-1 rounded-xl inline-flex flex-col sm:flex-row w-full md:w-auto border border-slate-200/50 gap-1 sm:gap-0">
+                <div className="bg-slate-100/50 p-1 rounded-xl inline-flex w-full md:w-auto border border-slate-200/50">
                    <ModeButton label="Mis Estudiantes" targetMode="mine" />
                    <ModeButton label="Todos los Estudiantes" targetMode="all" />
                 </div>
             )}
 
             <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2 mb-1 sm:mb-0">Filtros:</span>
-                    <div className="flex flex-wrap gap-2 overflow-x-auto pb-1">
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2">Filtros:</span>
+                    <div className="flex flex-wrap gap-2">
                          <FilterButton label="Todos los Grados" isActive={gradeFilter === 'all'} onClick={() => setGradeFilter('all')} />
                          {availableGrades.map(g => (
                             <FilterButton key={g} label={g} isActive={gradeFilter === g} onClick={() => setGradeFilter(g)} />
                         ))}
                     </div>
                 </div>
-                 <div className="flex flex-wrap gap-2 sm:pl-16">
+                 <div className="flex flex-wrap gap-2 pl-12 sm:pl-16">
                     {riskLevels.map(level => (
                         <FilterButton key={level.value} label={level.label} isActive={riskFilter === level.value} onClick={() => setRiskFilter(level.value)} />
                     ))}

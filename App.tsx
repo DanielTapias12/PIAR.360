@@ -1,4 +1,7 @@
 
+
+
+
 import React, { useState, useMemo, useEffect } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -608,7 +611,6 @@ const App: React.FC = () => {
                             user={currentUser} 
                             students={studentsForUser} 
                             onAddProgressEntry={handleAddProgressEntry}
-                            onAssignStrategy={handleAssignStrategyToStudent}
                         />;
             case 'strategies':
                 return <StrategyBank students={studentsForUser} onAssignStrategy={handleAssignStrategyToStudent} />;

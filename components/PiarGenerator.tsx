@@ -22,6 +22,7 @@ const LoadingSpinner = ({ text }: { text: string }) => (
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
         <p className="mt-4 text-slate-600 font-medium">{text}</p>
+        <p className="text-sm text-slate-500">Esto puede tardar unos segundos.</p>
     </div>
 );
 
@@ -39,6 +40,7 @@ const PiarGenerator: React.FC<PiarGeneratorProps> = ({ student, onDocumentAdd, o
     const [analysisSuccess, setAnalysisSuccess] = useState<boolean>(false);
 
     useEffect(() => {
+        // Load PIAR data from the most recent PIAR document in the student prop
         const piarDoc = student.documents
             .filter(d => d.type === 'PIAR' && d.content)
             .sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime())[0];
@@ -54,15 +56,18 @@ const PiarGenerator: React.FC<PiarGeneratorProps> = ({ student, onDocumentAdd, o
         setIsLoading(true);
         setError(null);
         setPiarData(null);
+
         try {
             const data = await generatePiar(diagnosisText, student.grade, student.age);
             if (data) {
                 setPiarData(data);
+                // Note: Auto-saving generated content is also disabled here to be consistent, 
+                // relying on the user to review and click 'Save'.
             } else {
-                setError("No se pudo generar el PIAR.");
+                setError("No se pudo generar el PIAR. La respuesta de la IA fue inválida.");
             }
         } catch (err) {
-            setError("Error al contactar el servicio de IA.");
+            setError("Ocurrió un error al contactar el servicio de IA. Por favor, revise la configuración de la API Key.");
             console.error(err);
         } finally {
             setIsLoading(false);
@@ -82,33 +87,39 @@ const PiarGenerator: React.FC<PiarGeneratorProps> = ({ student, onDocumentAdd, o
         setIsAnalyzing(true);
         setAnalysisError(null);
         setAnalysisSuccess(false);
+        setPiarData(null); // Clear current data while analyzing
 
         const reader = new FileReader();
         reader.onload = async (e) => {
             const fileContent = e.target?.result as string;
             if (!fileContent) {
-                setAnalysisError("No se pudo leer el archivo.");
+                setAnalysisError("No se pudo leer el contenido del archivo.");
                 setIsAnalyzing(false);
                 return;
             }
 
             try {
-                // Use Gemini 3 Pro to structure the document into editable JSON
+                // gemini-3-pro-preview returns structured JSON (PiarData)
                 const improvedPiarData = await analyzePiar(student.diagnosis, fileContent);
                 
                 if (improvedPiarData) {
                     setPiarData(improvedPiarData);
                     setAnalysisSuccess(true);
-                    // Switch to editor mode to let user review before saving
+                    
+                    // NOTE: We do NOT call onDocumentAdd here. 
+                    // The user must review the data in the editor and explicitly click "Guardar Cambios"
+                    // to save it to the documents list.
+
+                    // Immediately switch to editor mode so the user can edit the analyzed data
                     setTimeout(() => {
                         setMode('generate');
-                        setAnalysisSuccess(false); 
                     }, 1500);
+
                 } else {
-                    setAnalysisError("No se pudo estructurar el PIAR.");
+                    setAnalysisError("No se pudo estructurar el PIAR. Intente con un documento más claro.");
                 }
             } catch (err) {
-                setAnalysisError("Error al analizar el documento.");
+                setAnalysisError("Ocurrió un error al contactar el servicio de IA.");
                 console.error(err);
             } finally {
                 setIsAnalyzing(false);
@@ -122,27 +133,29 @@ const PiarGenerator: React.FC<PiarGeneratorProps> = ({ student, onDocumentAdd, o
         const pageHeight = doc.internal.pageSize.height;
         let y = 15;
     
+        // Helper to add sections and manage page breaks
         const addSection = (title: string, content: () => void) => {
             if (y > pageHeight - 40) {
                 doc.addPage();
                 y = 15;
             }
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(12);
-            doc.setTextColor(30, 41, 59);
+            doc.setFontSize(14);
             doc.text(title, 14, y);
             y += 8;
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(10);
-            doc.setTextColor(51, 65, 85);
             content();
             y += 10; 
         };
     
-        doc.setFontSize(16);
+        doc.setFontSize(18);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(15, 23, 42);
-        doc.text(`PIAR - ${student.name}`, 105, y, { align: 'center' });
+        doc.text(`Plan Individualizado de Ajustes Razonables (PIAR)`, 105, y, { align: 'center' });
+        y += 8;
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Estudiante: ${student.name}`, 105, y, { align: 'center' });
         y += 15;
     
         addSection('Resumen del Diagnóstico', () => {
@@ -154,45 +167,54 @@ const PiarGenerator: React.FC<PiarGeneratorProps> = ({ student, onDocumentAdd, o
         addSection('Fortalezas y Barreras', () => {
             (doc as any).autoTable({
                 startY: y,
-                head: [['Fortalezas', 'Barreras']],
-                body: [[
-                    data.fortalezas.map(f => `• ${f}`).join('\n'),
-                    data.barreras_aprendizaje.map(b => `• ${b}`).join('\n')
-                ]],
+                head: [['Fortalezas', 'Barreras de Aprendizaje']],
+                body: [
+                    [
+                        data.fortalezas.map(f => `- ${f}`).join('\n'),
+                        data.barreras_aprendizaje.map(b => `- ${b}`).join('\n')
+                    ]
+                ],
                 theme: 'grid',
-                headStyles: { fillColor: [2, 132, 199] },
+                styles: { fontSize: 9, cellPadding: 2 },
+                headStyles: { fillColor: [22, 163, 74], textColor: 255 },
             });
-            y = (doc as any).lastAutoTable.finalY + 10;
+            y = (doc as any).lastAutoTable.finalY;
         });
     
         addSection('Ajustes Razonables', () => {
             (doc as any).autoTable({
                 startY: y,
-                head: [['Área', 'Ajustes']],
-                body: data.ajustes_razonables.map(i => [i.area, i.ajustes.map(a => `• ${a}`).join('\n')]),
+                head: [['Área/Materia', 'Ajustes Propuestos']],
+                body: data.ajustes_razonables.map(item => [
+                    item.area,
+                    item.ajustes.map(a => `- ${a}`).join('\n')
+                ]),
                 theme: 'striped',
-                headStyles: { fillColor: [2, 132, 199] },
+                styles: { fontSize: 9, cellPadding: 2 },
+                headStyles: { fillColor: [8, 145, 178] },
             });
-            y = (doc as any).lastAutoTable.finalY + 10;
+             y = (doc as any).lastAutoTable.finalY;
         });
 
-        if (data.actividades_refuerzo) {
-            addSection('Actividades de Refuerzo', () => {
-                 (doc as any).autoTable({
-                    startY: y,
-                    head: [['Área', 'Actividades']],
-                    body: data.actividades_refuerzo.map(i => [i.area, i.actividades.map(a => `• ${a}`).join('\n')]),
-                    theme: 'striped',
-                    headStyles: { fillColor: [2, 132, 199] },
-                });
-                y = (doc as any).lastAutoTable.finalY + 10;
+        addSection('Actividades de Refuerzo', () => {
+            (doc as any).autoTable({
+                startY: y,
+                head: [['Área de Refuerzo', 'Actividades Sugeridas']],
+                body: data.actividades_refuerzo.map(item => [
+                    item.area,
+                    item.actividades.map(a => `- ${a}`).join('\n')
+                ]),
+                theme: 'striped',
+                styles: { fontSize: 9, cellPadding: 2 },
+                headStyles: { fillColor: [8, 145, 178] },
             });
-        }
+             y = (doc as any).lastAutoTable.finalY;
+        });
     
-        addSection('Seguimiento', () => {
-            const text = doc.splitTextToSize(data.estrategias_seguimiento.join('\n• '), 180);
+        addSection('Estrategias de Seguimiento', () => {
+            const text = doc.splitTextToSize(data.estrategias_seguimiento.join('\n'), 180);
             doc.text(text, 14, y);
-            y += text.length * 5;
+             y += text.length * 5;
         });
 
         return doc.output('blob');
@@ -203,41 +225,45 @@ const PiarGenerator: React.FC<PiarGeneratorProps> = ({ student, onDocumentAdd, o
         setSaveStatus('saving');
         
         try {
-            // 1. Generate PDF
+            // 1. Generate PDF Blob
             const pdfBlob = generatePdfBlob(piarData);
-            const fileName = `PIAR_${student.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+            const fileName = `PIAR_${student.name.replace(/\s/g, '_')}_${Date.now()}.pdf`;
             const filePath = `${student.id}/${fileName}`;
 
-            // 2. Upload to Supabase
+            // 2. Upload PDF to Supabase Storage
             const { error: uploadError } = await supabase.storage
                 .from('student_documents')
-                .upload(filePath, pdfBlob, { contentType: 'application/pdf' });
+                .upload(filePath, pdfBlob, {
+                    contentType: 'application/pdf'
+                });
 
             if (uploadError) throw uploadError;
 
-            // 3. Get URL
-            const { data: urlData } = supabase.storage.from('student_documents').getPublicUrl(filePath);
+            // 3. Get Public URL
+            const { data: urlData } = supabase.storage
+                .from('student_documents')
+                .getPublicUrl(filePath);
 
-            // 4. Save Metadata
+            // 4. Create Document Object
             const newDocument: Document = {
                 id: `doc_piar_${Date.now()}`,
                 name: fileName,
                 type: 'PIAR',
                 uploadDate: new Date().toISOString().split('T')[0],
                 url: urlData.publicUrl,
-                content: piarData
+                content: piarData // Keep the JSON content for future editing
             };
 
+            // 5. Update Student Record (Append new doc)
             const updatedDocuments = [newDocument, ...student.documents];
             onUpdateStudent({ ...student, documents: updatedDocuments });
-            onDocumentAdd(newDocument);
 
             setSaveStatus('saved');
             setTimeout(() => setSaveStatus('idle'), 2000);
 
         } catch (error) {
             console.error("Error saving PIAR:", error);
-            setError("Error al guardar el documento.");
+            setError("Error al guardar el documento. Intente nuevamente.");
             setSaveStatus('idle');
         }
     };
@@ -248,25 +274,38 @@ const PiarGenerator: React.FC<PiarGeneratorProps> = ({ student, onDocumentAdd, o
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `PIAR_${student.name}.pdf`;
+        link.download = `PIAR_${student.name.replace(/\s/g, '_')}.pdf`;
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
     };
     
-    // Helper functions for editing state
+    // Editable PIAR handlers
     const handleListUpdate = (field: keyof PiarData, index: number, value: string) => { setPiarData(prev => { if (!prev) return null; if (!Array.isArray(prev[field])) return prev; const list = [...(prev[field] as string[])]; list[index] = value; return { ...prev, [field]: list }; }); };
     const addListItem = (field: keyof PiarData) => { setPiarData(prev => { if (!prev || !Array.isArray(prev[field])) return null; const list = [...(prev[field] as string[]), '']; return { ...prev, [field]: list }; }); };
     const removeListItem = (field: keyof PiarData, index: number) => { setPiarData(prev => { if (!prev || !Array.isArray(prev[field])) return null; const list = (prev[field] as string[]).filter((_, i) => i !== index); return { ...prev, [field]: list }; }); };
-    const handleAdjustmentChange = (areaIndex: number, ajusteIndex: number, value: string) => { setPiarData(prev => { if (!prev) return null; const updated = JSON.parse(JSON.stringify(prev.ajustes_razonables)); updated[areaIndex].ajustes[ajusteIndex] = value; return { ...prev, ajustes_razonables: updated }; }); };
-    const addAdjustment = (areaIndex: number) => { setPiarData(prev => { if (!prev) return null; const updated = JSON.parse(JSON.stringify(prev.ajustes_razonables)); updated[areaIndex].ajustes.push(''); return { ...prev, ajustes_razonables: updated }; }); };
-    const removeAdjustment = (areaIndex: number, ajusteIndex: number) => { setPiarData(prev => { if (!prev) return null; const updated = JSON.parse(JSON.stringify(prev.ajustes_razonables)); updated[areaIndex].ajustes.splice(ajusteIndex, 1); return { ...prev, ajustes_razonables: updated }; }); };
-    
-    // UI Components
+    const handleAreaTitleChange = (areaIndex: number, value: string) => { setPiarData(prev => { if (!prev) return null; const updatedAjustes = prev.ajustes_razonables.map((area, i) => i === areaIndex ? { ...area, area: value } : area); return { ...prev, ajustes_razonables: updatedAjustes }; }); };
+    const removeAdjustmentArea = (areaIndex: number) => { setPiarData(prev => { if (!prev) return null; const updatedAjustes = prev.ajustes_razonables.filter((_, i) => i !== areaIndex); return { ...prev, ajustes_razonables: updatedAjustes }; }); };
+    const addAdjustmentArea = () => { setPiarData(prev => { if (!prev) return null; const newArea = { area: 'Nueva Área', ajustes: [''] }; return { ...prev, ajustes_razonables: [...prev.ajustes_razonables, newArea] }; }); };
+    const handleAdjustmentChange = (areaIndex: number, ajusteIndex: number, value: string) => { setPiarData(prev => { if (!prev) return null; const updatedAjustes = JSON.parse(JSON.stringify(prev.ajustes_razonables)); updatedAjustes[areaIndex].ajustes[ajusteIndex] = value; return { ...prev, ajustes_razonables: updatedAjustes }; }); };
+    const addAdjustment = (areaIndex: number) => { setPiarData(prev => { if (!prev) return null; const updatedAjustes = JSON.parse(JSON.stringify(prev.ajustes_razonables)); updatedAjustes[areaIndex].ajustes.push(''); return { ...prev, ajustes_razonables: updatedAjustes }; }); };
+    const removeAdjustment = (areaIndex: number, ajusteIndex: number) => { setPiarData(prev => { if (!prev) return null; const updatedAjustes = JSON.parse(JSON.stringify(prev.ajustes_razonables)); updatedAjustes[areaIndex].ajustes.splice(ajusteIndex, 1); return { ...prev, ajustes_razonables: updatedAjustes }; }); };
+    const handleRefuerzoAreaTitleChange = (areaIndex: number, value: string) => { setPiarData(prev => { if (!prev) return null; const updatedActividades = prev.actividades_refuerzo.map((area, i) => i === areaIndex ? { ...area, area: value } : area); return { ...prev, actividades_refuerzo: updatedActividades }; }); };
+    const removeRefuerzoArea = (areaIndex: number) => { setPiarData(prev => { if (!prev) return null; const updatedActividades = prev.actividades_refuerzo.filter((_, i) => i !== areaIndex); return { ...prev, actividades_refuerzo: updatedActividades }; }); };
+    const addRefuerzoArea = () => { setPiarData(prev => { if (!prev) return null; const newArea = { area: 'Nueva Área de Refuerzo', actividades: [''] }; return { ...prev, actividades_refuerzo: [...(prev.actividades_refuerzo || []), newArea] }; }); };
+    const handleRefuerzoActividadChange = (areaIndex: number, actividadIndex: number, value: string) => { setPiarData(prev => { if (!prev) return null; const updatedActividades = JSON.parse(JSON.stringify(prev.actividades_refuerzo)); updatedActividades[areaIndex].actividades[actividadIndex] = value; return { ...prev, actividades_refuerzo: updatedActividades }; }); };
+    const addRefuerzoActividad = (areaIndex: number) => { setPiarData(prev => { if (!prev) return null; const updatedActividades = JSON.parse(JSON.stringify(prev.actividades_refuerzo)); updatedActividades[areaIndex].actividades.push(''); return { ...prev, actividades_refuerzo: updatedActividades }; }); };
+    const removeRefuerzoActividad = (areaIndex: number, actividadIndex: number) => { setPiarData(prev => { if (!prev) return null; const updatedActividades = JSON.parse(JSON.stringify(prev.actividades_refuerzo)); updatedActividades[areaIndex].actividades.splice(actividadIndex, 1); return { ...prev, actividades_refuerzo: updatedActividades }; }); };
+
+
     const ModeButton = ({ label, targetMode }: { label: string, targetMode: PiarMode }) => {
         const isActive = mode === targetMode;
+        const activeClasses = "border-sky-500 text-sky-600";
+        const inactiveClasses = "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300";
         return (
             <button
                 onClick={() => setMode(targetMode)}
-                className={`whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm transition-colors flex-shrink-0 ${isActive ? 'border-sky-500 text-sky-600 bg-sky-50' : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
+                className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${isActive ? activeClasses : inactiveClasses}`}
             >
                 {label}
             </button>
@@ -274,93 +313,154 @@ const PiarGenerator: React.FC<PiarGeneratorProps> = ({ student, onDocumentAdd, o
     };
 
     return (
-        <div className="p-4 md:p-6">
-            <div className="mb-6 flex border-b border-slate-200 overflow-x-auto">
-                <ModeButton label="Editor PIAR (Generador)" targetMode="generate" />
-                <ModeButton label="Analizar y Mejorar Documento" targetMode="analyze" />
+        <div className="p-6">
+            <div className="bg-sky-50 border-l-4 border-sky-500 text-sky-800 p-4 rounded-r-lg mb-6" role="alert">
+                <p className="font-bold">Nota sobre Normativa</p>
+                <p className="text-sm">La estructura y sugerencias de este PIAR se basan en los lineamientos del Decreto 1421 de 2017 de Colombia para la educación inclusiva.</p>
+            </div>
+            
+             <div className="mb-6 border-b border-slate-200">
+                <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                    <ModeButton label="Editor PIAR (Generador)" targetMode="generate" />
+                    <ModeButton label="Analizar y Mejorar Documento" targetMode="analyze" />
+                </nav>
             </div>
             
             {mode === 'generate' && (
                 <>
+                    {/* Only show the diagnosis input if we don't have a PIAR loaded yet, OR if we want to regenerate */}
                     {!piarData && (
                         <div className="bg-slate-50 rounded-lg p-4 mb-6 border border-slate-200">
-                            <label className="block text-sm font-medium text-slate-700">Diagnóstico para generar con IA</label>
-                            <textarea rows={4} className="mt-2 block w-full text-sm border-slate-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500" value={diagnosisText} onChange={(e) => setDiagnosisText(e.target.value)} />
+                            <label htmlFor="diagnosis" className="block text-sm font-medium text-slate-700">Diagnóstico y Fuentes de Información</label>
+                            <p className="mt-1 text-xs text-slate-500">Incluya un resumen consolidado de evaluaciones, informes y observaciones para obtener la mejor sugerencia de la IA.</p>
+                            <textarea id="diagnosis" rows={4} className="mt-2 block w-full text-sm border-slate-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500" value={diagnosisText} onChange={(e) => setDiagnosisText(e.target.value)} />
                             <div className="mt-3 text-right">
-                                <button onClick={handleGenerate} disabled={isLoading} className="w-full sm:w-auto inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-sky-600 hover:bg-sky-700 disabled:bg-slate-400">
+                                <button onClick={handleGenerate} disabled={isLoading} className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 disabled:bg-slate-400 disabled:cursor-not-allowed">
                                     <WandIcon className="w-5 h-5 mr-2" />
-                                    {isLoading ? 'Generando...' : 'Generar PIAR'}
+                                    {isLoading ? 'Generando...' : 'Generar PIAR con IA'}
                                 </button>
                             </div>
                         </div>
                     )}
-                    {isLoading && <LoadingSpinner text="Generando borrador..." />}
+                    {isLoading && <LoadingSpinner text="Generando borrador del PIAR con IA..." />}
                 </>
             )}
 
             {mode === 'analyze' && (
-                <div className="bg-slate-50 rounded-lg p-6 border border-slate-200 text-center">
-                    <UploadIcon className="w-12 h-12 mx-auto text-slate-400 mb-3" />
-                    <h3 className="text-lg font-medium text-slate-900">Analizar Documento Existente</h3>
-                    <p className="text-sm text-slate-500 mb-4">Sube un archivo de texto (.txt) para que Gemini 3 Pro lo analice y estructure en el editor.</p>
-                    <input type="file" onChange={handleFileChange} accept=".txt" className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100 mx-auto max-w-xs"/>
-                    <button onClick={handleAnalyze} disabled={!uploadedFile || isAnalyzing} className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-sky-600 hover:bg-sky-700 disabled:bg-slate-400">
-                        <SparklesIcon className="w-5 h-5 mr-2" />
-                        {isAnalyzing ? 'Analizando...' : 'Analizar y Editar'}
-                    </button>
-                    {isAnalyzing && <LoadingSpinner text="Procesando documento..." />}
-                    {analysisError && <p className="text-red-600 mt-2">{analysisError}</p>}
+                <div className="bg-slate-50 rounded-lg p-4 mb-6 border border-slate-200">
+                    <label className="block text-sm font-medium text-slate-700">Mejorar PIAR Existente con IA</label>
+                    <p className="mt-1 text-xs text-slate-500">
+                        Sube un documento (TXT o copiado) de un PIAR antiguo. La IA analizará el contenido, lo reestructurará, completará secciones faltantes según la normativa y lo cargará en el editor para que puedas modificarlo.
+                    </p>
+                    <div className="mt-4">
+                        <div className="flex items-center justify-center w-full">
+                            <label htmlFor="piar-upload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-100 hover:bg-slate-200 transition">
+                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                    <UploadIcon className="w-10 h-10 mb-3 text-slate-400" />
+                                    <p className="mb-2 text-sm text-slate-500"><span className="font-semibold">Click para subir</span> o arrastra y suelta</p>
+                                    <p className="text-xs text-slate-400">Solo archivos de texto (.txt) son soportados actualmente.</p>
+                                </div>
+                                <input id="piar-upload" type="file" className="hidden" onChange={handleFileChange} accept=".txt" />
+                            </label>
+                        </div>
+                        {uploadedFile && <p className="mt-3 text-sm text-slate-600 text-center">Archivo seleccionado: <span className="font-medium">{uploadedFile.name}</span></p>}
+                    </div>
+                    <div className="mt-4 text-right">
+                        <button onClick={handleAnalyze} disabled={!uploadedFile || isAnalyzing} className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 disabled:bg-slate-400 disabled:cursor-not-allowed">
+                            <SparklesIcon className="w-5 h-5 mr-2" />
+                            {isAnalyzing ? 'Analizando y Estructurando...' : 'Analizar y Cargar al Editor'}
+                        </button>
+                    </div>
+                    {isAnalyzing && <LoadingSpinner text="Gemini 3 Pro está analizando el documento y estructurando los datos..." />}
                 </div>
             )}
             
+            {error && <div className="text-center p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>}
+            {analysisError && <div className="text-center p-4 bg-red-100 text-red-700 rounded-lg">{analysisError}</div>}
+            
             {analysisSuccess && (
-                <div className="my-4 p-4 bg-green-50 border-l-4 border-green-500 text-green-800 rounded-r-lg flex items-center">
-                    <CheckCircleIcon className="w-6 h-6 mr-3 flex-shrink-0"/>
-                    <p>¡Análisis completado! Editando contenido...</p>
+                <div className="my-4 p-4 bg-green-50 border-l-4 border-green-500 text-green-800 rounded-r-lg animate-fade-in" role="alert">
+                    <div className="flex items-center">
+                        <CheckCircleIcon className="w-6 h-6 mr-3"/>
+                        <div>
+                            <p className="font-bold">¡Análisis completado!</p>
+                            <p className="text-sm">Hemos cargado la información estructurada en el editor. Recuerda presionar <strong>"Guardar Cambios"</strong> para almacenar el PIAR en los documentos del estudiante.</p>
+                        </div>
+                    </div>
                 </div>
             )}
 
             {piarData && mode === 'generate' && (
-                 <div className="border border-slate-200 rounded-lg p-4 md:p-6 bg-white shadow-sm mt-4 animate-fade-in">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                        <h3 className="text-xl font-bold text-slate-800">Editor PIAR</h3>
-                        <div className="flex flex-wrap gap-2 w-full md:w-auto">
-                             <button onClick={handleSaveChanges} disabled={saveStatus === 'saving'} className="flex-1 md:flex-none inline-flex justify-center items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400">
+                 <div className="border border-slate-200 rounded-lg p-6 animate-fade-in bg-white shadow-sm mt-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start mb-6 gap-4">
+                        <div>
+                            <h3 className="text-xl font-bold text-slate-800">Editor del PIAR para {student.name}</h3>
+                            <p className="text-sm text-slate-500">Revise y ajuste el contenido sugerido por la IA según sea necesario.</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                             <button onClick={handleSaveChanges} disabled={saveStatus === 'saving'} className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 disabled:bg-slate-400">
                                 <SaveIcon className="w-4 h-4 mr-2" />
-                                {saveStatus === 'saving' ? 'Guardando...' : 'Guardar'}
+                                {saveStatus === 'saving' ? 'Guardando...' : saveStatus === 'saved' ? '¡Guardado!' : 'Guardar Cambios'}
                             </button>
-                             <button onClick={handleExportPdf} className="flex-1 md:flex-none inline-flex justify-center items-center px-3 py-1.5 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50">
+                             <button onClick={handleExportPdf} className="inline-flex items-center px-3 py-1.5 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50">
                                 <ExportIcon className="w-4 h-4 mr-2" />
-                                Vista Previa
+                                Exportar a PDF
                             </button>
-                             <button onClick={() => setPiarData(null)} className="p-2 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-50">
+                             <button onClick={() => setPiarData(null)} className="p-2 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-50" title="Borrar y empezar de nuevo">
                                 <TrashIcon className="w-5 h-5" />
                             </button>
                         </div>
                     </div>
                     <div className="space-y-6">
                         <div>
-                            <h4 className="font-semibold text-sky-700 mb-2">Resumen Diagnóstico</h4>
-                            <textarea value={piarData.resumen_diagnostico} onChange={(e) => setPiarData({...piarData, resumen_diagnostico: e.target.value})} className="w-full text-sm border-slate-300 rounded-md shadow-sm focus:ring-sky-500 p-2 border" rows={3} />
+                            <h4 className="text-lg font-semibold text-sky-700 mb-2">Resumen del Diagnóstico</h4>
+                            <textarea value={piarData.resumen_diagnostico} onChange={(e) => setPiarData({...piarData, resumen_diagnostico: e.target.value})} className="w-full text-sm border-slate-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 p-2 border" rows={3} />
                         </div>
-                        <div>
-                            <h4 className="font-semibold text-sky-700 mb-2">Fortalezas</h4>
-                            {piarData.fortalezas.map((item, i) => (
-                                <div key={i} className="flex gap-2 mb-2"><input value={item} onChange={(e) => handleListUpdate('fortalezas', i, e.target.value)} className="w-full text-sm border-slate-300 rounded-md p-2 border"/><button onClick={() => removeListItem('fortalezas', i)}><TrashIcon className="w-4 h-4 text-slate-400"/></button></div>
-                            ))}
-                            <button onClick={() => addListItem('fortalezas')} className="text-sm text-sky-600 font-medium">+ Añadir Fortaleza</button>
-                        </div>
-                        <div>
-                            <h4 className="font-semibold text-sky-700 mb-2">Ajustes Razonables</h4>
-                            {piarData.ajustes_razonables.map((area, ai) => (
-                                <div key={ai} className="bg-slate-50 p-4 rounded-lg mb-4 border border-slate-200">
-                                    <h5 className="font-bold text-slate-700 mb-2">{area.area}</h5>
-                                    {area.ajustes.map((aj, ji) => (
-                                        <div key={ji} className="flex gap-2 mb-2"><input value={aj} onChange={(e) => handleAdjustmentChange(ai, ji, e.target.value)} className="w-full text-sm border-slate-300 rounded-md p-2 border"/><button onClick={() => removeAdjustment(ai, ji)}><TrashIcon className="w-4 h-4 text-slate-400"/></button></div>
+                        {Object.keys(piarData).filter(k => Array.isArray(piarData[k as keyof PiarData]) && k !== 'ajustes_razonables' && k !== 'actividades_refuerzo').map(key => (
+                            <div key={key}>
+                                <h4 className="text-lg font-semibold text-sky-700 mb-2 capitalize">{key.replace(/_/g, ' ')}</h4>
+                                <div className="space-y-2">
+                                    {(piarData[key as keyof PiarData] as string[]).map((item, index) => (
+                                        <div key={index} className="flex items-center gap-2">
+                                            <input type="text" value={item} onChange={(e) => handleListUpdate(key as keyof PiarData, index, e.target.value)} className="w-full text-sm border-slate-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 p-2 border" />
+                                            <button onClick={() => removeListItem(key as keyof PiarData, index)} className="p-1 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-100 transition"><TrashIcon className="w-4 h-4" /></button>
+                                        </div>
                                     ))}
-                                    <button onClick={() => addAdjustment(ai)} className="text-sm text-sky-600 font-medium">+ Añadir Ajuste</button>
                                 </div>
-                            ))}
+                                 <button onClick={() => addListItem(key as keyof PiarData)} className="mt-2 inline-flex items-center text-sm font-medium text-sky-600 hover:text-sky-800"><PlusIcon className="w-4 h-4 mr-1"/> Añadir</button>
+                            </div>
+                        ))}
+                        <div>
+                            <h4 className="text-lg font-semibold text-sky-700 mb-2">Ajustes Razonables</h4>
+                             <div className="space-y-4">
+                                {piarData.ajustes_razonables.map((areaItem, areaIndex) => (
+                                    <div key={areaIndex} className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <input type="text" value={areaItem.area} onChange={(e) => handleAreaTitleChange(areaIndex, e.target.value)} className="text-md font-semibold text-slate-700 border-none bg-transparent p-1 -m-1 focus:ring-2 focus:ring-sky-500 rounded-md" />
+                                            <button onClick={() => removeAdjustmentArea(areaIndex)} className="p-1 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-100 transition"><TrashIcon className="w-4 h-4" /></button>
+                                        </div>
+                                        <div className="space-y-2">{areaItem.ajustes.map((ajuste, ajusteIndex) => (<div key={ajusteIndex} className="flex items-center gap-2"><input type="text" value={ajuste} onChange={(e) => handleAdjustmentChange(areaIndex, ajusteIndex, e.target.value)} className="w-full text-sm border-slate-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 p-2 border" /><button onClick={() => removeAdjustment(areaIndex, ajusteIndex)} className="p-1 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-100 transition"><TrashIcon className="w-4 h-4" /></button></div>))}</div>
+                                        <button onClick={() => addAdjustment(areaIndex)} className="mt-3 inline-flex items-center text-sm font-medium text-sky-600 hover:text-sky-800"><PlusIcon className="w-4 h-4 mr-1"/> Añadir ajuste</button>
+                                    </div>
+                                ))}
+                            </div>
+                            <button onClick={addAdjustmentArea} className="mt-4 inline-flex items-center px-3 py-1.5 border border-dashed border-slate-400 text-sm font-medium rounded-md text-slate-600 bg-transparent hover:bg-slate-100"><PlusIcon className="w-4 h-4 mr-2" />Añadir Área</button>
+                        </div>
+                        <div>
+                            <h4 className="text-lg font-semibold text-sky-700 mb-2">Actividades de Refuerzo</h4>
+                             <div className="space-y-4">
+                                {piarData.actividades_refuerzo?.map((areaItem, areaIndex) => (
+                                    <div key={areaIndex} className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <input type="text" value={areaItem.area} onChange={(e) => handleRefuerzoAreaTitleChange(areaIndex, e.target.value)} className="text-md font-semibold text-slate-700 border-none bg-transparent p-1 -m-1 focus:ring-2 focus:ring-sky-500 rounded-md"/>
+                                            <button onClick={() => removeRefuerzoArea(areaIndex)} className="p-1 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-100 transition"><TrashIcon className="w-4 h-4" /></button>
+                                        </div>
+                                        <div className="space-y-2">{areaItem.actividades.map((actividad, actividadIndex) => (<div key={actividadIndex} className="flex items-center gap-2"><input type="text" value={actividad} onChange={(e) => handleRefuerzoActividadChange(areaIndex, actividadIndex, e.target.value)} className="w-full text-sm border-slate-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 p-2 border" /><button onClick={() => removeRefuerzoActividad(areaIndex, actividadIndex)} className="p-1 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-100 transition"><TrashIcon className="w-4 h-4" /></button></div>))}</div>
+                                        <button onClick={() => addRefuerzoActividad(areaIndex)} className="mt-3 inline-flex items-center text-sm font-medium text-sky-600 hover:text-sky-800"><PlusIcon className="w-4 h-4 mr-1"/> Añadir actividad</button>
+                                    </div>
+                                ))}
+                            </div>
+                            <button onClick={addRefuerzoArea} className="mt-4 inline-flex items-center px-3 py-1.5 border border-dashed border-slate-400 text-sm font-medium rounded-md text-slate-600 bg-transparent hover:bg-slate-100"><PlusIcon className="w-4 h-4 mr-2" />Añadir Área de Refuerzo</button>
                         </div>
                     </div>
                 </div>
